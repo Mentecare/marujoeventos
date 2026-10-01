@@ -1,0 +1,28 @@
+name: EventCore CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm install
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://mzwlchgxkuqptiqyznqd.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_w3dXIp4RQ574fPm7raGSjA_HcNqbidj
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+          GOOGLE_CLIENT_ID: ci-placeholder
+          GOOGLE_CLIENT_SECRET: ci-placeholder
+          GOOGLE_OAUTH_STATE_SECRET: ci-placeholder-ci-placeholder-ci-placeholder
+          GOOGLE_TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          NEXT_PUBLIC_APP_URL: https://example.vercel.app
