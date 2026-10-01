@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "tar -xzf eventcore-src.tar.gz --strip-components=1 && npx next build"
+    "dev": "next dev",
+    "build": "cat archive/part-*.b64 | base64 -d > /tmp/eventcore-src.tar.gz && echo \"41d42cb8c641ab2dc288efe919810426c44b9c32bb77960fd0754b73235edffb  /tmp/eventcore-src.tar.gz\" | sha256sum -c - && tar -xzf /tmp/eventcore-src.tar.gz --strip-components=1 && next build",
+    "start": "next start"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
