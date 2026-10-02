@@ -36,19 +36,5 @@ replaceOrThrow(
   'const token = await exchangeCode(code, url.origin);'
 );
 
-fs.mkdirSync("app/api/google/config-status", { recursive: true });
-fs.writeFileSync("app/api/google/config-status/route.ts", `import { NextResponse } from "next/server";
-
-export async function GET() {
-  return NextResponse.json({
-    googleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
-    googleClientSecret: Boolean(process.env.GOOGLE_CLIENT_SECRET),
-    appUrl: Boolean(process.env.NEXT_PUBLIC_APP_URL),
-    oauthStateSecret: Boolean(process.env.GOOGLE_OAUTH_STATE_SECRET),
-    tokenEncryptionKey: Boolean(process.env.GOOGLE_TOKEN_ENCRYPTION_KEY),
-    supabaseServiceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-  });
-}
-`);
-
+fs.rmSync("app/api/google/config-status", { recursive: true, force: true });
 console.log("EventCore production patch applied.");
