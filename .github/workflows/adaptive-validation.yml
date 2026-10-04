@@ -13,8 +13,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-      - run: npm install
+          node-version: "24"
+      - run: npm ci
+      - run: npm test
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://mzwlchgxkuqptiqyznqd.supabase.co
@@ -25,3 +26,4 @@ jobs:
           GOOGLE_OAUTH_STATE_SECRET: ci-placeholder-ci-placeholder-ci-placeholder
           GOOGLE_TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           NEXT_PUBLIC_APP_URL: https://eventcore.space
+      - run: npm run typecheck

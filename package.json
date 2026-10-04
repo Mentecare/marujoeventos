@@ -4,19 +4,22 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "cat archive/part-*.b64 | base64 -d > /tmp/eventcore-src.tar.gz && echo \"41d42cb8c641ab2dc288efe919810426c44b9c32bb77960fd0754b73235edffb  /tmp/eventcore-src.tar.gz\" | sha256sum -c - && tar -xzf /tmp/eventcore-src.tar.gz --strip-components=1 && node scripts/production-patch.mjs && next build",
-    "start": "next start"
+    "build": "next build",
+    "start": "next start",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.4",
-    "next": "^15.5.4",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "@supabase/supabase-js": "2.117.2",
+    "next": "15.5.27",
+    "react": "19.1.9",
+    "react-dom": "19.1.9"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "typescript": "^5.7.2"
-  }
+  },
+  "type": "module"
 }

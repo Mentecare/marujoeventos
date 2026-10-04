@@ -13,14 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Reconstruct current production source
+      - name: Prepare tracked source snapshot
         run: |
           mkdir -p /tmp/eventcore-source
-          cat archive/part-*.b64 | base64 -d > /tmp/eventcore-src.tar.gz
-          echo "41d42cb8c641ab2dc288efe919810426c44b9c32bb77960fd0754b73235edffb  /tmp/eventcore-src.tar.gz" | sha256sum -c -
-          tar -xzf /tmp/eventcore-src.tar.gz -C /tmp/eventcore-source --strip-components=1
-          cd /tmp/eventcore-source
-          node "$GITHUB_WORKSPACE/scripts/production-patch.mjs"
+          git archive HEAD | tar -x -C /tmp/eventcore-source
       - uses: actions/upload-artifact@v4
         with:
           name: eventcore-source-snapshot
