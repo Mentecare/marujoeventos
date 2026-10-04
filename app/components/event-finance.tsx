@@ -8,15 +8,17 @@ function brl(value: number | null) {
 }
 function dateLabel(value: string) { return value.split("-").reverse().join("/"); }
 
-export function RevenueDashboard({ data, period, onPeriodChange, onOpenEvent }: {
+export function RevenueDashboard({ data, period, loaded, loading, onPeriodChange, onOpenEvent }: {
   data: RevenueData;
   period: RevenuePeriod;
+  loaded: boolean;
+  loading: boolean;
   onPeriodChange: (period: RevenuePeriod) => void;
   onOpenEvent: (id: string) => void;
 }) {
   const [draft, setDraft] = useState(period);
   const [error, setError] = useState("");
-  const revenue = businessRevenue(data, period);
+  const revenue = loaded ? businessRevenue(data, period) : null;
   const today = revenueDateKey(new Date());
   function apply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,6 +31,7 @@ export function RevenueDashboard({ data, period, onPeriodChange, onOpenEvent }: 
     setDraft(current); setError(""); onPeriodChange(current);
   }
   function eventName(id: string) { return data.events.find(event => event.id === id)?.name ?? "Evento"; }
+  if (!revenue) return <section className="panel revenuePanel" aria-labelledby="revenue-title"><h2 id="revenue-title">Receitas</h2><p className="subtle" role="status">{loading ? "Atualizando receitas…" : "Receitas indisponíveis. Use Atualizar para carregar os valores."}</p></section>;
   return <section className="panel revenuePanel" aria-labelledby="revenue-title">
     <div className="sectionHead"><div><h2 id="revenue-title">Receitas</h2><p className="subtle">{dateLabel(period.start)} a {dateLabel(period.end)} · pela data do evento</p></div></div>
     <form className="form revenueFilters" onSubmit={apply}>
@@ -46,6 +49,23 @@ export function RevenueDashboard({ data, period, onPeriodChange, onOpenEvent }: 
     {revenue.missingEventIds.length > 0 && <div className="revenuePending" role="status"><p>{revenue.recordedEventCount ? "Totais parciais. " : "Receitas aguardando valores. "}{revenue.missingEventIds.length} {revenue.missingEventIds.length === 1 ? "evento sem valor cobrado não foi incluído" : "eventos sem valor cobrado não foram incluídos"}. Informe os valores em Eventos → Pagamentos.</p><div className="actions">{revenue.missingEventIds.slice(0, 5).map(id => <button className="btn secondary" type="button" key={id} onClick={() => onOpenEvent(id)}>Informar valores: {eventName(id)}</button>)}</div></div>}
     {revenue.missingCostEventIds.length > 0 && <div className="revenuePending" role="status"><p>Confirme os valores das contratações para calcular a receita líquida.</p><div className="actions">{revenue.missingCostEventIds.slice(0, 5).map(id => <button className="btn secondary" type="button" key={id} onClick={() => onOpenEvent(id)}>Conferir custos: {eventName(id)}</button>)}</div></div>}
   </section>;
+}
+
+export function AssignmentCostForm({ assignmentId, amount, busy, onSave }: {
+  assignmentId: string;
+  amount: number | null;
+  busy: boolean;
+  onSave: (assignmentId: string, amount: number) => Promise<void>;
+}) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const fields = new FormData(event.currentTarget);
+    await onSave(assignmentId, Number(fields.get("amount")));
+  }
+  return <form className="form assignmentCostForm" onSubmit={submit}>
+    <label>Valor contratado (R$)<input className="input" name="amount" type="number" inputMode="decimal" min={0} max={9999999999.99} step="0.01" required defaultValue={amount ?? ""}/></label>
+    <button className="btn secondary" disabled={busy}>Salvar valor</button>
+  </form>;
 }
 
 export function EventFinancialForm({ eventId, financial, busy, onSave }: {

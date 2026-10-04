@@ -40,6 +40,7 @@ const data = {
     { assignment_id: 'pending', amount: 20.01, status: 'pending' },
     { assignment_id: 'paid-cancelled', amount: 5.02, status: 'paid', paid_at: '2026-09-01T12:00:00Z' },
     { assignment_id: 'cancelled-payment', amount: 800, status: 'cancelled' },
+    { assignment_id: 'reserve', amount: 800, status: 'pending' },
     { assignment_id: 'september-assignment', amount: 50, status: 'paid', paid_at: '2026-10-02T12:00:00Z' },
   ],
   financials: [
@@ -81,6 +82,12 @@ test('zero is a real recorded price and negative net revenue is preserved', () =
   const result = businessRevenue({ ...data, financials: [{ event_id: 'october', gross_amount: 0, deductions_amount: 0, extra_costs_amount: 0 }] }, currentRevenuePeriod(now), now);
   assert.equal(result.grossRevenue, 0);
   assert.equal(result.netRevenue, -32.06);
+});
+
+test('unpaid reserves are excluded, while a real paid reserve still counts as a cost', () => {
+  const result = businessRevenue({ ...data, payments: data.payments.map(payment => payment.assignment_id === 'reserve' ? { ...payment, status: 'paid' } : payment) }, currentRevenuePeriod(now), now);
+  assert.equal(result.teamCosts, 832.06);
+  assert.equal(result.netRevenue, -754.05);
 });
 
 test('a missing contracted cost keeps net revenue unknown instead of inventing profit', () => {

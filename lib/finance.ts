@@ -59,6 +59,7 @@ export function businessRevenue(data: RevenueData, period = currentRevenuePeriod
     const eventId = serviceEvents.get(assignment.event_service_id);
     if (!eventId) continue;
     const payment = payments.get(assignment.id);
+    if (assignment.status === 'reserve' && payment?.status !== 'paid') continue;
     // An actual paid record survives cancellation; a cancelled payment is never revived.
     if (payment?.status === 'cancelled') continue;
     if (!payment && ['cancelled', 'reserve'].includes(assignment.status)) continue;

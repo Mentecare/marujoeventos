@@ -173,5 +173,32 @@ do $$ declare ev uuid:=current_setting('test.ec_event')::uuid; denied boolean; u
  perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
  if not exists(select 1 from public.event_financials where event_id=ev and gross_amount=1100.10 and deductions_amount=10.10 and extra_costs_amount=40) then raise exception 'financial_values_changed_by_other_profile'; end if;
 end $$;
-select 'PASS: previous lifecycle preserved; financial insert/upsert; financial constraints; assigned professional and cross-organization financial access denied; fixtures rolled back' as validation;
+-- Missing costs can be entered without falsely marking a payment as paid.
+do $$ declare ev uuid; service uuid; professional uuid; a uuid; denied boolean; begin
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_other'),'role','authenticated')::text,true);
+ select id into professional from public.freelancers where profile_id=auth.uid();
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
+ insert into public.events(client_id,name,venue,start_at,end_at,status,coordinator_id,created_by_profile_id,organization_id)
+ values(current_setting('test.ec_client')::uuid,'Cost validation','Validation venue',now()-interval '5 minutes',now()+interval '1 hour','confirmed',auth.uid(),auth.uid(),current_setting('test.ec_org')::uuid) returning id into ev;
+ insert into public.event_services(event_id,service_type,label,specialty_id,quantity_needed,freelancer_unit_cost)
+ values(ev,'loader','Carregador',current_setting('test.ec_specialty')::uuid,1,null) returning id into service;
+ a:=public.create_event_assignment(service,professional,'invited',null,null);
+ perform public.set_assignment_amount(a,175.25);
+ if not exists(select 1 from public.assignments where id=a and agreed_amount=175.25) or not exists(select 1 from public.payments where assignment_id=a and amount=175.25 and status='pending' and paid_at is null) then raise exception 'cost_edit_marked_paid_or_unsynchronized'; end if;
+ perform public.set_assignment_amount(a,190.50);
+ if (select count(*) from public.payments where assignment_id=a)<>1 or not exists(select 1 from public.payments where assignment_id=a and amount=190.50 and status='pending') then raise exception 'cost_edit_duplicate_or_failed'; end if;
+ denied:=false;begin perform public.set_assignment_amount(a,-1);exception when raise_exception then if sqlerrm='invalid_payment_amount' then denied:=true;else raise;end if;end;
+ if not denied then raise exception 'negative_cost_edit_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_agency'),'role','authenticated')::text,true);
+ denied:=false;begin perform public.set_assignment_amount(a,99);exception when raise_exception then if sqlerrm='forbidden' then denied:=true;else raise;end if;end;
+ if not denied then raise exception 'foreign_cost_edit_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_other'),'role','authenticated')::text,true);
+ denied:=false;begin perform public.set_assignment_amount(a,99);exception when raise_exception then if sqlerrm='forbidden' then denied:=true;else raise;end if;end;
+ if not denied then raise exception 'professional_own_cost_edit_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
+ perform public.mark_assignment_paid(a,'pix');
+ denied:=false;begin perform public.set_assignment_amount(a,999);exception when raise_exception then if sqlerrm='payment_already_paid' then denied:=true;else raise;end if;end;
+ if not denied or not exists(select 1 from public.payments where assignment_id=a and amount=190.50 and status='paid') then raise exception 'paid_cost_history_changed'; end if;
+end $$;
+select 'PASS: previous lifecycle and financial RLS preserved; missing cost entry; pending status and atomic amounts; cross-organization/professional cost edit denied; paid history immutable; fixtures rolled back' as validation;
 rollback;
