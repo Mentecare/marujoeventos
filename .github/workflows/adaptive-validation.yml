@@ -1,9 +1,9 @@
-name: EventCore CI
+name: EventCore Adaptive Validation
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    branches:
+      - feature/eventcore-adaptive-profiles
 
 jobs:
   build:
@@ -25,5 +25,5 @@ jobs:
           GOOGLE_CLIENT_SECRET: ci-placeholder
           GOOGLE_OAUTH_STATE_SECRET: ci-placeholder-ci-placeholder-ci-placeholder
           GOOGLE_TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-          NEXT_PUBLIC_APP_URL: https://example.vercel.app
+          NEXT_PUBLIC_APP_URL: https://eventcore.space
       - run: npm run typecheck

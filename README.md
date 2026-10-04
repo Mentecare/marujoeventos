@@ -1,5 +1,19 @@
 # EventCore — Marujo Eventos
 
+## Atualização de perfis e oportunidades
+
+Freelancer, responsável por equipe, empresa e agência têm navegação e indicadores próprios. Início e Dashboard são separados. Especialidades vêm do banco; CPF/CNPJ fica apenas na identificação privada. Usuários antigos completam o perfil na mesma conta.
+
+Oportunidades usam uma projeção pública dos dados da vaga. Candidatura, contratação, presença, pagamento e avaliação passam por funções transacionais com verificação de perfil, organização, capacidade e status. Avaliações exigem evento concluído e presença validada; uma contratação recebe no máximo uma avaliação.
+
+O código existente foi recuperado do snapshot de produção e agora fica diretamente versionado em `app`, `lib` e `public`. O build usa `next build` e não reconstrói arquivos binários. As rotas Google OAuth/Calendar e os nomes das variáveis existentes foram preservados.
+
+### Desenvolvimento e validação
+
+Use Node.js 24 e `npm ci`. Configure as variáveis de `.env.example` em `.env.local`, mantendo segredos fora do Git. Execute `npm test`, `npm run typecheck`, `npm run build` e `npm run dev`.
+
+`tests/database-read.sql` e `tests/database-flow.sql` verificam permissões e o fluxo real usando transações com rollback. Execute apenas com a conexão administrativa do projeto correto. As migrações adaptativas anteriores estão espelhadas com suas versões já aplicadas; não as reaplique no projeto existente.
+
 Versão de produção permanente em **Vercel + Supabase**, sem dependência do Floot.
 
 ## Arquitetura
