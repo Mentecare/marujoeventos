@@ -147,5 +147,58 @@ do $$ declare ev uuid; service uuid; app uuid; a uuid; professional uuid; denied
  perform public.respond_to_assignment(a,'cancelled');
  if not exists(select 1 from public.job_applications where id=app and status='rejected') or not exists(select 1 from public.payments where assignment_id=a and status='cancelled') then raise exception 'contractor_linked_cancellation_not_atomic'; end if;
 end $$;
-select 'PASS: five profiles; private identity; safe opportunities/schedules; selection; atomic hiring/attendance; cancellation/reapply/rehire; capacity; tenant isolation; duplicate review denial; actual reputation; paid history preserved; fixtures rolled back' as validation;
+-- Client revenue remains private, editable by the event's manager, and constrained.
+do $$ declare ev uuid:=current_setting('test.ec_event')::uuid; denied boolean; updated int; begin
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
+ insert into public.event_financials(event_id,gross_amount,deductions_amount,extra_costs_amount) values(ev,1000.10,10.10,40);
+ insert into public.event_financials(event_id,gross_amount,deductions_amount,extra_costs_amount) values(ev,1100.10,10.10,40)
+ on conflict(event_id) do update set gross_amount=excluded.gross_amount;
+ if not exists(select 1 from public.event_financials where event_id=ev and gross_amount=1100.10) then raise exception 'financial_upsert_failed'; end if;
+ denied:=false;begin update public.event_financials set deductions_amount=1200 where event_id=ev;exception when check_violation then denied:=true;end;
+ if not denied then raise exception 'deductions_above_revenue_allowed'; end if;
+ denied:=false;begin update public.event_financials set extra_costs_amount=-1 where event_id=ev;exception when check_violation then denied:=true;end;
+ if not denied then raise exception 'negative_financial_amount_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_freelancer'),'role','authenticated')::text,true);
+ if exists(select 1 from public.event_financials where event_id=ev) then raise exception 'financials_leaked_to_assigned_professional'; end if;
+ denied:=false;begin insert into public.event_financials(event_id,gross_amount) values(ev,99);exception when insufficient_privilege then denied:=true;end;
+ if not denied then raise exception 'professional_financial_insert_allowed'; end if;
+ update public.event_financials set gross_amount=99 where event_id=ev;get diagnostics updated=row_count;
+ if updated<>0 then raise exception 'professional_financial_update_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_agency'),'role','authenticated')::text,true);
+ if exists(select 1 from public.event_financials where event_id=ev) then raise exception 'financials_leaked_to_other_organization'; end if;
+ denied:=false;begin insert into public.event_financials(event_id,gross_amount) values(ev,99);exception when insufficient_privilege then denied:=true;end;
+ if not denied then raise exception 'cross_organization_financial_insert_allowed'; end if;
+ update public.event_financials set gross_amount=99 where event_id=ev;get diagnostics updated=row_count;
+ if updated<>0 then raise exception 'cross_organization_financial_update_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
+ if not exists(select 1 from public.event_financials where event_id=ev and gross_amount=1100.10 and deductions_amount=10.10 and extra_costs_amount=40) then raise exception 'financial_values_changed_by_other_profile'; end if;
+end $$;
+-- Missing costs can be entered without falsely marking a payment as paid.
+do $$ declare ev uuid; service uuid; professional uuid; a uuid; denied boolean; begin
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_other'),'role','authenticated')::text,true);
+ select id into professional from public.freelancers where profile_id=auth.uid();
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
+ insert into public.events(client_id,name,venue,start_at,end_at,status,coordinator_id,created_by_profile_id,organization_id)
+ values(current_setting('test.ec_client')::uuid,'Cost validation','Validation venue',now()-interval '5 minutes',now()+interval '1 hour','confirmed',auth.uid(),auth.uid(),current_setting('test.ec_org')::uuid) returning id into ev;
+ insert into public.event_services(event_id,service_type,label,specialty_id,quantity_needed,freelancer_unit_cost)
+ values(ev,'loader','Carregador',current_setting('test.ec_specialty')::uuid,1,null) returning id into service;
+ a:=public.create_event_assignment(service,professional,'invited',null,null);
+ perform public.set_assignment_amount(a,175.25);
+ if not exists(select 1 from public.assignments where id=a and agreed_amount=175.25) or not exists(select 1 from public.payments where assignment_id=a and amount=175.25 and status='pending' and paid_at is null) then raise exception 'cost_edit_marked_paid_or_unsynchronized'; end if;
+ perform public.set_assignment_amount(a,190.50);
+ if (select count(*) from public.payments where assignment_id=a)<>1 or not exists(select 1 from public.payments where assignment_id=a and amount=190.50 and status='pending') then raise exception 'cost_edit_duplicate_or_failed'; end if;
+ denied:=false;begin perform public.set_assignment_amount(a,-1);exception when raise_exception then if sqlerrm='invalid_payment_amount' then denied:=true;else raise;end if;end;
+ if not denied then raise exception 'negative_cost_edit_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_agency'),'role','authenticated')::text,true);
+ denied:=false;begin perform public.set_assignment_amount(a,99);exception when raise_exception then if sqlerrm='forbidden' then denied:=true;else raise;end if;end;
+ if not denied then raise exception 'foreign_cost_edit_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_other'),'role','authenticated')::text,true);
+ denied:=false;begin perform public.set_assignment_amount(a,99);exception when raise_exception then if sqlerrm='forbidden' then denied:=true;else raise;end if;end;
+ if not denied then raise exception 'professional_own_cost_edit_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
+ perform public.mark_assignment_paid(a,'pix');
+ denied:=false;begin perform public.set_assignment_amount(a,999);exception when raise_exception then if sqlerrm='payment_already_paid' then denied:=true;else raise;end if;end;
+ if not denied or not exists(select 1 from public.payments where assignment_id=a and amount=190.50 and status='paid') then raise exception 'paid_cost_history_changed'; end if;
+end $$;
+select 'PASS: previous lifecycle and financial RLS preserved; missing cost entry; pending status and atomic amounts; cross-organization/professional cost edit denied; paid history immutable; fixtures rolled back' as validation;
 rollback;
