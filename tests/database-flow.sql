@@ -147,5 +147,31 @@ do $$ declare ev uuid; service uuid; app uuid; a uuid; professional uuid; denied
  perform public.respond_to_assignment(a,'cancelled');
  if not exists(select 1 from public.job_applications where id=app and status='rejected') or not exists(select 1 from public.payments where assignment_id=a and status='cancelled') then raise exception 'contractor_linked_cancellation_not_atomic'; end if;
 end $$;
-select 'PASS: five profiles; private identity; safe opportunities/schedules; selection; atomic hiring/attendance; cancellation/reapply/rehire; capacity; tenant isolation; duplicate review denial; actual reputation; paid history preserved; fixtures rolled back' as validation;
+-- Client revenue remains private, editable by the event's manager, and constrained.
+do $$ declare ev uuid:=current_setting('test.ec_event')::uuid; denied boolean; updated int; begin
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
+ insert into public.event_financials(event_id,gross_amount,deductions_amount,extra_costs_amount) values(ev,1000.10,10.10,40);
+ insert into public.event_financials(event_id,gross_amount,deductions_amount,extra_costs_amount) values(ev,1100.10,10.10,40)
+ on conflict(event_id) do update set gross_amount=excluded.gross_amount;
+ if not exists(select 1 from public.event_financials where event_id=ev and gross_amount=1100.10) then raise exception 'financial_upsert_failed'; end if;
+ denied:=false;begin update public.event_financials set deductions_amount=1200 where event_id=ev;exception when check_violation then denied:=true;end;
+ if not denied then raise exception 'deductions_above_revenue_allowed'; end if;
+ denied:=false;begin update public.event_financials set extra_costs_amount=-1 where event_id=ev;exception when check_violation then denied:=true;end;
+ if not denied then raise exception 'negative_financial_amount_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_freelancer'),'role','authenticated')::text,true);
+ if exists(select 1 from public.event_financials where event_id=ev) then raise exception 'financials_leaked_to_assigned_professional'; end if;
+ denied:=false;begin insert into public.event_financials(event_id,gross_amount) values(ev,99);exception when insufficient_privilege then denied:=true;end;
+ if not denied then raise exception 'professional_financial_insert_allowed'; end if;
+ update public.event_financials set gross_amount=99 where event_id=ev;get diagnostics updated=row_count;
+ if updated<>0 then raise exception 'professional_financial_update_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_agency'),'role','authenticated')::text,true);
+ if exists(select 1 from public.event_financials where event_id=ev) then raise exception 'financials_leaked_to_other_organization'; end if;
+ denied:=false;begin insert into public.event_financials(event_id,gross_amount) values(ev,99);exception when insufficient_privilege then denied:=true;end;
+ if not denied then raise exception 'cross_organization_financial_insert_allowed'; end if;
+ update public.event_financials set gross_amount=99 where event_id=ev;get diagnostics updated=row_count;
+ if updated<>0 then raise exception 'cross_organization_financial_update_allowed'; end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
+ if not exists(select 1 from public.event_financials where event_id=ev and gross_amount=1100.10 and deductions_amount=10.10 and extra_costs_amount=40) then raise exception 'financial_values_changed_by_other_profile'; end if;
+end $$;
+select 'PASS: previous lifecycle preserved; financial insert/upsert; financial constraints; assigned professional and cross-organization financial access denied; fixtures rolled back' as validation;
 rollback;

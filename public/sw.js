@@ -1,4 +1,4 @@
-const CACHE = "eventcore-shell-adaptive-v2";
+const CACHE = "eventcore-shell-revenue-v3";
 const SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
