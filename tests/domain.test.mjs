@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { capabilitiesFor, navigationFor } from '../lib/capabilities.ts';
+import { capabilitiesFor, navigationFor, profileOrganizationFor } from '../lib/capabilities.ts';
 import { validateDocument, normalizeDocument } from '../lib/identity.ts';
 import { freelancerDashboard, businessDashboard } from '../lib/dashboard.ts';
 
@@ -22,6 +22,17 @@ test('all completed business profiles retain clients/events while Google stays s
     assert.equal(capabilitiesFor(p).manageCalendar,false);
   }
   assert.equal(capabilitiesFor({role:'admin',profile_type:null,active:true,onboarding_completed:true}).manageCalendar,true);
+});
+
+test('profile editing selects the first active owned organization regardless of the operational selection', () => {
+  const organizations=[
+    {id:'selected-managed',owner_profile_id:'another',active:true,created_at:'2026-01-01T00:00:00Z'},
+    {id:'later-owned',owner_profile_id:'me',active:true,created_at:'2026-03-01T00:00:00Z'},
+    {id:'inactive-owned',owner_profile_id:'me',active:false,created_at:'2025-01-01T00:00:00Z'},
+    {id:'first-owned',owner_profile_id:'me',active:true,created_at:'2026-02-01T00:00:00Z'},
+  ];
+  assert.equal(profileOrganizationFor(organizations,'me')?.id,'first-owned');
+  assert.equal(profileOrganizationFor(organizations,'unrelated'),null);
 });
 
 test('private identity checks reject forged check digits and support numeric and alphabetic CNPJ', () => {

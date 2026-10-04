@@ -23,3 +23,6 @@ export function navigationFor(p:CapabilityProfile){
   return tabs.map(id=>({id,label:labels[id]}));
 }
 export function canOpenTab(p:CapabilityProfile,tab:AppTab){return navigationFor(p).some(x=>x.id===tab)}
+export function profileOrganizationFor<T extends {owner_profile_id:string;active:boolean;created_at?:string}>(organizations:T[],profileId:string){
+  return organizations.filter(o=>o.active&&o.owner_profile_id===profileId).sort((a,b)=>(a.created_at||'').localeCompare(b.created_at||''))[0]||null;
+}
