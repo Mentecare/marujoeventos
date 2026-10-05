@@ -338,7 +338,7 @@ function Empty({text}:{text:string}){return <div className="empty"><span>{text}<
 function EventCard({ev,services,assignments,open}:{ev:EventRow;services:EventService[];assignments:Assignment[];open:()=>void}){
   const sv=services.filter(s=>s.event_id===ev.id);const ids=new Set(sv.map(s=>s.id));const need=sv.reduce((n,s)=>n+s.quantity_needed,0);const filled=assignments.filter(a=>ids.has(a.event_service_id)&&['invited','confirmed','checked_in','checked_out'].includes(a.status)).length;
   const progress=need?Math.min(100,Math.round(filled/need*100)):0;
-  return <button className="eventCard" onClick={open} aria-label={`Abrir ${ev.name}`}>
+  return <button className="eventCard" onClick={open} aria-label={`Abrir ${ev.name}, ${ev.venue}, ${date(ev.start_at)}, ${eventStatus[ev.status]}, ${filled} de ${need} vagas preenchidas, ${calendarStatus[ev.calendar_sync_status]||'Agenda'}`}>
     <div className="eventCardHeading"><span className="eyebrow">OPERAÇÃO EM EVENTO</span><strong>{ev.name}</strong></div>
     <div className="eventCardDetails"><span><AppIcon name="location"/>{ev.venue}</span><span><AppIcon name="schedule"/>{date(ev.start_at)} · {eventStatus[ev.status]}</span></div>
     <div className="eventProgress"><div className="progressRing"><svg viewBox="0 0 56 56" aria-hidden="true"><circle className="progressTrack" cx="28" cy="28" r="24"/><circle className="progressValue" cx="28" cy="28" r="24" strokeDasharray="150.8" strokeDashoffset={150.8*(1-progress/100)}/></svg><strong>{progress}%</strong></div><div><strong>{filled} de {need}</strong><span>vagas preenchidas</span></div></div>

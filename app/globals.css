@@ -56,6 +56,7 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .input:focus-visible, .btn:focus-visible, button:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #3fc79b; outline-offset: 3px; }
 .form, .form label, .linkForm label { min-width: 0; }
 .form label, .linkForm label { color: #48615b; font-weight: 650; }
+.eventsGrid > .form .formGrid { grid-template-columns: minmax(0, 1fr); }
 .panel, .operator, .freelancerCard { border-color: var(--border); padding: 22px; }
 .panel + .panel { margin-top: 18px; }
 .panel h2, .panel h3 { margin-bottom: 18px; }
@@ -116,7 +117,7 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .eventCard { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; margin: 0 0 16px; padding: 22px; border: 1px solid var(--border); border-radius: 18px; background: white; box-shadow: var(--shadow); gap: 17px; text-align: left; }
 .eventCard:first-child { border-top: 1px solid var(--border); }
 .eventCardHeading { display: grid; gap: 10px; }
-.eventCardHeading .eyebrow { margin: 0; font-size: .61rem; color: #70857c; }
+.eventCardHeading .eyebrow { margin: 0; font-size: .61rem; color: var(--muted); }
 .eventCardHeading > strong { font-size: 1.6rem; color: #203a37; }
 .eventCardDetails { display: grid; gap: 10px; }
 .eventCardDetails > span { display: flex; align-items: flex-start; gap: 10px; margin: 0; font-size: .75rem; line-height: 1.5; }
@@ -182,10 +183,11 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .metrics { gap: 12px; }
   .metric { padding: 17px; }
   .metric strong { font-size: 1.45rem; }
-  .metric .currencyValue, .revenueMetrics .metric strong { font-size: clamp(.95rem, 4vw, 1.1rem); }
+  .metric .currencyValue, .revenueMetrics .metric strong { font-size: clamp(.85rem, 3.5vw, 1rem); }
   .welcome + .metrics { padding: 10px 6px; }
   .welcome + .metrics .metric { padding: 9px 7px; gap: 6px; }
   .welcome + .metrics .metric strong { font-size: 1.2rem; }
+  .welcome + .metrics .metric .currencyValue { font-size: clamp(.75rem, 3.3vw, .85rem); }
   .welcome + .metrics .metric > span { font-size: .65rem; }
   .welcome + .metrics .metric small { font-size: .6rem; }
   .welcome + .metrics .metricSymbol { width: 34px; height: 34px; border-radius: 10px; }
@@ -193,7 +195,7 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .eventCard > div:nth-child(3) { grid-column: auto; }
   .eventCard > .eventCalendarStatus { display: inline-flex; }
   .mobileNav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; overflow: visible; gap: 0; z-index: 100; padding: 12px 8px calc(max(8px, env(safe-area-inset-bottom)) + 10px); border-top: 1px solid #d9e4dd; background: white; box-shadow: 0 -2px 12px rgba(24, 50, 40, .035); }
-  .mobileNav button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; min-width: 0; min-height: 44px; padding: 6px 2px; color: #75857f; font-size: .61rem; line-height: 1.15; font-weight: 500; border-radius: 0; white-space: normal; }
+  .mobileNav button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; min-width: 0; min-height: 44px; padding: 6px 2px; color: var(--muted); font-size: .61rem; line-height: 1.15; font-weight: 500; border-radius: 0; white-space: normal; }
   .mobileNav .uiIcon { width: 23px; height: 23px; }
   .mobileNav button > span { max-width: 100%; text-align: center; overflow-wrap: anywhere; }
   .mobileNav button.active { background: transparent; color: #208765; }
@@ -205,6 +207,7 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .cardGrid { gap: 15px; }
   .revenueFilters { gap: 14px 10px; }
   .revenueMetrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .revenueMetrics .metric { padding: 14px; }
 }
 @media (max-width: 380px) {
   .main { padding-left: 16px; padding-right: 16px; }
