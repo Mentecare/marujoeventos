@@ -101,8 +101,8 @@ export default function Page(){
 
   const caps=profile?capabilitiesFor(profile):null;
   const nav=profile?navigationFor(profile):[];
-  const mobileNavigation=['home','events',caps?.professional?'schedule':'team','finance','profile'].flatMap(id=>nav.filter(n=>n.id===id));
-  const extraNavigation=nav.filter(n=>!mobileNavigation.some(primary=>primary.id===n.id));
+  const mobileNavigation=nav;
+  const extraNavigation=nav.filter(n=>['dashboard','clients','reputation'].includes(n.id));
   const currentOrg=organizations.find(o=>o.id===activeOrgId)||organizations.find(o=>o.owner_profile_id===profile?.id)||organizations[0]||null;
   const profileOrganization=profile?profileOrganizationFor(organizations,profile.id):null;
   useEffect(()=>{if(currentOrg&&caps?.manageTeam)supabase.rpc("get_organization_roster",{p_organization_id:currentOrg.id}).then(({data,error})=>{if(error)setError(error.message);else setRoster(data||[])});else setRoster([])},[currentOrg?.id,profile?.id]);
