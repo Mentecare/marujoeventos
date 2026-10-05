@@ -4,7 +4,7 @@ export type EventCreationInput = {
     status: string; arrival_tolerance_minutes: number; notes: string | null;
   };
   services: {
-    specialty_id: string; quantity_needed: number; reserve_target: number;
+    specialty_id: string; quantity_needed: number; reserve_target: number; contract_days: number;
     freelancer_unit_cost: number | null; briefing: string | null;
     requirements: string | null; open_marketplace: boolean;
   }[];
@@ -25,13 +25,17 @@ export function buildEventCreation(fields: FormData, functionKeys: string[]): Ev
     const field = (name: string) => text(`function.${key}.${name}`);
     const specialty = field("specialty_id"), quantity = Number(field("quantity_needed"));
     const reserve = Number(field("reserve_target") || 0), rawCost = field("cost");
+    const days = fields.has(`function.${key}.contract_days`) ? Number(field("contract_days")) : 1;
     const cost = rawCost === "" ? null : Number(rawCost);
+    if (!Number.isInteger(days) || days < 1 || days > 2147483647) {
+      throw new Error(`Informe uma quantidade inteira de dias, maior que zero, para a função ${index + 1}.`);
+    }
     if (!specialty || !Number.isInteger(quantity) || quantity < 1 || quantity > 2147483647 ||
       !Number.isInteger(reserve) || reserve < 0 || reserve > 2147483647 ||
       (cost !== null && (!Number.isFinite(cost) || cost < 0 || cost > 9999999999.99 || Math.round(cost * 100) / 100 !== cost))) {
       throw new Error(`Confira a especialidade, as vagas, as reservas e o valor da função ${index + 1}.`);
     }
-    return { specialty_id: specialty, quantity_needed: quantity, reserve_target: reserve,
+    return { specialty_id: specialty, quantity_needed: quantity, reserve_target: reserve, contract_days: days,
       freelancer_unit_cost: cost, briefing: field("briefing") || null,
       requirements: field("requirements") || null, open_marketplace: field("open_marketplace") === "on" };
   });

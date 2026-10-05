@@ -47,6 +47,7 @@ export function EventCreationForm({ clients, specialties, busy, onCreate }: {
           <button className="btn ghost functionRemove" type="button" onClick={() => setFunctionKeys(keys => keys.filter(item => item !== key))} aria-label={`Remover função ${index + 1}`}>Remover função</button>
           <label>Especialidade<select className="select" name={`function.${key}.specialty_id`} required defaultValue=""><option value="">Selecione</option>{availableSpecialties.map(specialty => <option key={specialty.id} value={specialty.id}>{specialty.name}</option>)}</select></label>
           <div className="formGrid"><label>Vagas<input className="input" name={`function.${key}.quantity_needed`} type="number" min="1" max="2147483647" step="1" defaultValue="1" required/></label><label>Reservas<input className="input" name={`function.${key}.reserve_target`} type="number" min="0" max="2147483647" step="1" defaultValue="0"/></label></div>
+          <label>Dias de contratação<input className="input" name={`function.${key}.contract_days`} type="number" inputMode="numeric" min="1" max="2147483647" step="1" defaultValue="1" required/></label>
           <label>Valor por profissional (R$)<input className="input" name={`function.${key}.cost`} type="number" inputMode="decimal" min="0" max="9999999999.99" step="0.01"/></label>
           <label>Briefing<textarea className="textarea" name={`function.${key}.briefing`}/></label>
           <label>Requisitos<textarea className="textarea" name={`function.${key}.requirements`}/></label>
