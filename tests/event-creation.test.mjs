@@ -1,0 +1,59 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import { buildEventCreation as build } from '../lib/event-creation.ts';
+
+function form(values = {}) {
+  const fields = new FormData();
+  for (const [key, value] of Object.entries({
+    name: '  Evento de montagem  ', client_id: 'client-id', venue: '  Riocentro  ',
+    start_at: '2026-10-10T08:00:00-03:00', end_at: '2026-10-10T18:00:00-03:00',
+    status: 'planning', tolerance: '15', notes: '  Nota interna  ', ...values,
+  })) fields.set(key, value);
+  return fields;
+}
+function addFunction(fields, key, values = {}) {
+  for (const [name, value] of Object.entries({
+    specialty_id: 'specialty-id', quantity_needed: '2', reserve_target: '1',
+    cost: '', briefing: '', requirements: '', ...values,
+  })) fields.set(`function.${key}.${name}`, value);
+}
+
+test('event creation includes all requested functions and preserves absent versus zero costs', () => {
+  const fields = form();
+  addFunction(fields, 'first', { cost: '0', briefing: '  Chegar cedo  ', open_marketplace: 'on' });
+  addFunction(fields, 'second', { specialty_id: 'another-specialty', quantity_needed: '5', reserve_target: '0', requirements: '  Sapato fechado  ' });
+  assert.deepEqual(build(fields, ['first', 'second']), {
+    event: { name: 'Evento de montagem', client_id: 'client-id', venue: 'Riocentro', start_at: '2026-10-10T11:00:00.000Z', end_at: '2026-10-10T21:00:00.000Z', status: 'planning', arrival_tolerance_minutes: 15, notes: 'Nota interna' },
+    services: [
+      { specialty_id: 'specialty-id', quantity_needed: 2, reserve_target: 1, freelancer_unit_cost: 0, briefing: 'Chegar cedo', requirements: null, open_marketplace: true },
+      { specialty_id: 'another-specialty', quantity_needed: 5, reserve_target: 0, freelancer_unit_cost: null, briefing: null, requirements: 'Sapato fechado', open_marketplace: false },
+    ],
+  });
+});
+
+test('removed draft functions are excluded and an event can be created without functions', () => {
+  const fields = form();
+  addFunction(fields, 'removed', { cost: '-1' });
+  assert.deepEqual(build(fields, []).services, []);
+});
+
+test('an invalid function prevents any creation payload from being submitted', () => {
+  for (const values of [
+    { specialty_id: '' }, { quantity_needed: '0' }, { quantity_needed: '1.5' },
+    { quantity_needed: '2147483648' }, { reserve_target: '-1' }, { reserve_target: '0.5' },
+    { cost: '-0.01' }, { cost: 'NaN' }, { cost: '12.345' }, { cost: '10000000000' },
+  ]) {
+    const fields = form(); addFunction(fields, 'valid'); addFunction(fields, 'invalid', values);
+    assert.throws(() => build(fields, ['valid', 'invalid']), /função|funções/i);
+  }
+});
+
+test('event creation rejects missing details and invalid date ranges before requesting a save', () => {
+  for (const values of [
+    { name: '   ' }, { client_id: '' }, { venue: '  ' }, { start_at: 'invalid' },
+    { end_at: '' }, { end_at: '2026-10-10T07:00:00-03:00' },
+    { end_at: '2026-10-10T08:00:00-03:00' }, { tolerance: '-1' },
+    { tolerance: '15.5' }, { status: 'completed' },
+  ]) assert.throws(() => build(form(values), []), /evento|término|tolerância/i);
+});

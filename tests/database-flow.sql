@@ -22,13 +22,13 @@ do $$ declare k text; doc text; typ text; spec uuid; result jsonb; begin
 end $$;
 
 -- Organization isolation, public catalog, capacity and coherent hire/application/payment.
-do $$ declare client uuid; ev uuid; service uuid; begin
+do $$ declare client uuid; ev uuid; service uuid; result jsonb; begin
  perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
  insert into public.clients(trade_name,organization_id) values('Validation client',current_setting('test.ec_org')::uuid) returning id into client;
- insert into public.events(client_id,name,venue,start_at,end_at,status,coordinator_id,created_by_profile_id,organization_id,notes)
- values(client,'Validation event','Validation venue',now()-interval '5 minutes',now()+interval '1 hour','confirmed',auth.uid(),auth.uid(),current_setting('test.ec_org')::uuid,'PRIVATE INTERNAL NOTE') returning id into ev;
- insert into public.event_services(event_id,service_type,label,specialty_id,quantity_needed,visibility,application_enabled,freelancer_unit_cost)
- values(ev,'loader','Carregador',current_setting('test.ec_specialty')::uuid,1,'open',true,150) returning id into service;
+ result:=public.create_event_with_services(
+   jsonb_build_object('client_id',client,'name','Validation event','venue','Validation venue','start_at',now()-interval '5 minutes','end_at',now()+interval '1 hour','status','confirmed','organization_id',current_setting('test.ec_org'),'notes','PRIVATE INTERNAL NOTE'),
+   jsonb_build_array(jsonb_build_object('specialty_id',current_setting('test.ec_specialty'),'quantity_needed',1,'open_marketplace',true,'freelancer_unit_cost',150)));
+ ev:=(result->'event'->>'id')::uuid;service:=(result->'services'->0->>'id')::uuid;
  update public.event_services set requirements='Closed shoes' where id=service;
  perform set_config('test.ec_event',ev::text,true);perform set_config('test.ec_service',service::text,true);perform set_config('test.ec_client',client::text,true);
  if (select count(*) from public.events where id=ev)<>1 then raise exception 'manager_event_read_failed'; end if;
@@ -117,12 +117,13 @@ do $$ declare r uuid; denied boolean; a uuid:=current_setting('test.ec_assignmen
  if not exists(select 1 from public.get_professional_directory() where profile_id=current_setting('test.ec_freelancer')::uuid and rating=4 and review_count=1 and completed_jobs=1) then raise exception 'real_reputation_aggregation_failed'; end if;
 end $$;
 -- Contractor rejection/cancellation and historical paid records use a separate live opportunity.
-do $$ declare ev uuid; service uuid; app uuid; a uuid; professional uuid; denied boolean; begin
+do $$ declare ev uuid; service uuid; next_service uuid; app uuid; a uuid; professional uuid; denied boolean; result jsonb; begin
  perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
- insert into public.events(client_id,name,venue,start_at,end_at,status,coordinator_id,created_by_profile_id,organization_id)
- values(current_setting('test.ec_client')::uuid,'Selection validation','Validation venue',now(),now()+interval '2 hours','confirmed',auth.uid(),auth.uid(),current_setting('test.ec_org')::uuid) returning id into ev;
- insert into public.event_services(event_id,service_type,label,specialty_id,quantity_needed,visibility,application_enabled,freelancer_unit_cost)
- values(ev,'loader','Carregador',current_setting('test.ec_specialty')::uuid,1,'open',true,80) returning id into service;
+ result:=public.create_event_with_services(
+   jsonb_build_object('client_id',current_setting('test.ec_client'),'name','Selection validation','venue','Validation venue','start_at',now(),'end_at',now()+interval '2 hours','status','confirmed','organization_id',current_setting('test.ec_org')),
+   jsonb_build_array(jsonb_build_object('specialty_id',current_setting('test.ec_specialty'),'quantity_needed',1,'open_marketplace',true,'freelancer_unit_cost',80),
+                    jsonb_build_object('specialty_id',current_setting('test.ec_specialty'),'quantity_needed',1,'open_marketplace',true,'freelancer_unit_cost',90)));
+ ev:=(result->'event'->>'id')::uuid;service:=(result->'services'->0->>'id')::uuid;next_service:=(result->'services'->1->>'id')::uuid;
  perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_other'),'role','authenticated')::text,true);
  select id into professional from public.freelancers where profile_id=auth.uid();
  app:=public.apply_for_opportunity(service,null);
@@ -138,8 +139,7 @@ do $$ declare ev uuid; service uuid; app uuid; a uuid; professional uuid; denied
  if not exists(select 1 from public.payments where assignment_id=a and status='paid' and amount=80 and paid_at is not null) then raise exception 'cancellation_erased_historical_payment'; end if;
  denied:=false;begin perform public.create_event_assignment(service,professional,'invited',80,null);exception when raise_exception then if sqlerrm='historical_assignment_cannot_reopen' then denied:=true;else raise;end if;end;
  if not denied then raise exception 'paid_history_reused_for_new_hire'; end if;
- insert into public.event_services(event_id,service_type,label,specialty_id,quantity_needed,visibility,application_enabled,freelancer_unit_cost)
- values(ev,'loader','Carregador',current_setting('test.ec_specialty')::uuid,1,'open',true,90) returning id into service;
+ service:=next_service;
  perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_other'),'role','authenticated')::text,true);
  app:=public.apply_for_opportunity(service,null);
  perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
@@ -174,14 +174,14 @@ do $$ declare ev uuid:=current_setting('test.ec_event')::uuid; denied boolean; u
  if not exists(select 1 from public.event_financials where event_id=ev and gross_amount=1100.10 and deductions_amount=10.10 and extra_costs_amount=40) then raise exception 'financial_values_changed_by_other_profile'; end if;
 end $$;
 -- Missing costs can be entered without falsely marking a payment as paid.
-do $$ declare ev uuid; service uuid; professional uuid; a uuid; denied boolean; begin
+do $$ declare ev uuid; service uuid; professional uuid; a uuid; denied boolean; result jsonb; begin
  perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_other'),'role','authenticated')::text,true);
  select id into professional from public.freelancers where profile_id=auth.uid();
  perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_company'),'role','authenticated')::text,true);
- insert into public.events(client_id,name,venue,start_at,end_at,status,coordinator_id,created_by_profile_id,organization_id)
- values(current_setting('test.ec_client')::uuid,'Cost validation','Validation venue',now()-interval '5 minutes',now()+interval '1 hour','confirmed',auth.uid(),auth.uid(),current_setting('test.ec_org')::uuid) returning id into ev;
- insert into public.event_services(event_id,service_type,label,specialty_id,quantity_needed,freelancer_unit_cost)
- values(ev,'loader','Carregador',current_setting('test.ec_specialty')::uuid,1,null) returning id into service;
+ result:=public.create_event_with_services(
+   jsonb_build_object('client_id',current_setting('test.ec_client'),'name','Cost validation','venue','Validation venue','start_at',now()-interval '5 minutes','end_at',now()+interval '1 hour','status','confirmed','organization_id',current_setting('test.ec_org')),
+   jsonb_build_array(jsonb_build_object('specialty_id',current_setting('test.ec_specialty'),'quantity_needed',1,'freelancer_unit_cost',null)));
+ ev:=(result->'event'->>'id')::uuid;service:=(result->'services'->0->>'id')::uuid;
  a:=public.create_event_assignment(service,professional,'invited',null,null);
  perform public.set_assignment_amount(a,175.25);
  if not exists(select 1 from public.assignments where id=a and agreed_amount=175.25) or not exists(select 1 from public.payments where assignment_id=a and amount=175.25 and status='pending' and paid_at is null) then raise exception 'cost_edit_marked_paid_or_unsynchronized'; end if;
