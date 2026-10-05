@@ -27,7 +27,7 @@ do $$ declare client uuid; ev uuid; service uuid; result jsonb; begin
  insert into public.clients(trade_name,organization_id) values('Validation client',current_setting('test.ec_org')::uuid) returning id into client;
  result:=public.create_event_with_services(
    jsonb_build_object('client_id',client,'name','Validation event','venue','Validation venue','start_at',now()-interval '5 minutes','end_at',now()+interval '1 hour','status','confirmed','organization_id',current_setting('test.ec_org'),'notes','PRIVATE INTERNAL NOTE'),
-   jsonb_build_array(jsonb_build_object('specialty_id',current_setting('test.ec_specialty'),'quantity_needed',1,'open_marketplace',true,'freelancer_unit_cost',150)));
+   jsonb_build_array(jsonb_build_object('specialty_id',current_setting('test.ec_specialty'),'quantity_needed',1,'contract_days',3,'open_marketplace',true,'freelancer_unit_cost',150)));
  ev:=(result->'event'->>'id')::uuid;service:=(result->'services'->0->>'id')::uuid;
  update public.event_services set requirements='Closed shoes' where id=service;
  perform set_config('test.ec_event',ev::text,true);perform set_config('test.ec_service',service::text,true);perform set_config('test.ec_client',client::text,true);
@@ -38,7 +38,7 @@ do $$ declare o record; app uuid; denied boolean; updated int; begin
  if exists(select 1 from public.clients where id=current_setting('test.ec_client')::uuid) then raise exception 'freelancer_client_data_leaked'; end if;
  if exists(select 1 from public.events where id=current_setting('test.ec_event')::uuid) then raise exception 'raw_opportunity_event_leaked'; end if;
  select * into o from public.get_event_opportunities() where service_id=current_setting('test.ec_service')::uuid;
- if o.event_name<>'Validation event' or o.vacancies<>1 or o.amount<>150 or not o.compatible then raise exception 'sanitized_opportunity_read_failed'; end if;
+ if o.event_name<>'Validation event' or o.vacancies<>1 or o.amount<>150 or o.contract_days is distinct from 3 or not o.compatible then raise exception 'sanitized_opportunity_read_failed'; end if;
  app:=public.apply_for_opportunity(current_setting('test.ec_service')::uuid,'Validation interest');perform set_config('test.ec_app',app::text,true);
  if public.apply_for_opportunity(current_setting('test.ec_service')::uuid,null)<>app then raise exception 'application_not_idempotent'; end if;
  denied:=false;begin update public.profiles set onboarding_completed=true,profile_type='company' where id=auth.uid(); exception when insufficient_privilege then denied:=true;end;
@@ -92,6 +92,7 @@ do $$ declare schedule jsonb; begin
  perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.ec_freelancer'),'role','authenticated')::text,true);
  if exists(select 1 from public.events where id=current_setting('test.ec_event')::uuid) then raise exception 'assigned_event_internal_data_leaked'; end if;
  schedule:=public.get_my_schedule();
+ if not exists(select 1 from jsonb_array_elements(schedule->'services') s where s->>'id'=current_setting('test.ec_service') and (s->>'contract_days')::integer=3) then raise exception 'safe_schedule_days_missing'; end if;
  if not exists(select 1 from jsonb_array_elements(schedule->'events') e where e->>'name'='Validation event') or schedule::text like '%PRIVATE INTERNAL NOTE%' or schedule::text like '%client_id%' or schedule::text like '%google_event_id%' then raise exception 'safe_schedule_failed'; end if;
 end $$;
 
