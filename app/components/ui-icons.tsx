@@ -1,7 +1,7 @@
 import type { ReactNode, SVGProps } from "react";
 import type { AppTab } from "@/lib/capabilities";
 
-export type IconName = AppTab | "refresh" | "logout" | "location" | "arrow" | "check";
+export type IconName = AppTab | "refresh" | "logout" | "location" | "arrow" | "check" | "camera" | "gallery" | "edit";
 const paths: Record<IconName, ReactNode> = {
   home: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
   dashboard: <><path d="M4 4v16h16"/><path d="M8 15v-4m5 4V7m5 8v-6"/></>,
@@ -17,6 +17,9 @@ const paths: Record<IconName, ReactNode> = {
   location: <><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></>,
   arrow: <><path d="M5 12h14m-6-6 6 6-6 6"/></>,
   check: <path d="m5 12 4 4L19 6"/>,
+  camera: <><path d="m8 5 2-2h4l2 2h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><circle cx="12" cy="12" r="4"/></>,
+  gallery: <><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1"/><path d="m3 17 5-5 4 4 4-7 5 8"/></>,
+  edit: <><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15l-1 5Z"/></>,
 };
 
 export function AppIcon({name, className = "", ...props}: SVGProps<SVGSVGElement> & {name: IconName}) {
