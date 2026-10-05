@@ -33,10 +33,10 @@
 
 **Interfaces:** `public.create_event_with_services(p_event jsonb, p_services jsonb default '[]') returns jsonb` returns `{event, services}`. Inputs contain new event fields and function rows without any existing event ID.
 
-- [ ] Write and run rollback integration checks that fail when the creation RPC is absent.
-- [ ] Implement explicit authentication, tenant authorization, active specialties, valid dates, quantities and money; insert the new event and all functions atomically.
-- [ ] Remove authenticated direct function INSERT and enforce immutable function event ownership, while retaining existing SELECT/UPDATE/DELETE policies.
-- [ ] Update existing integration fixtures to use creation-time functions and run the complete rollback flow.
+- [x] Write and run rollback integration checks that fail when the creation RPC is absent.
+- [x] Implement explicit authentication, tenant authorization, active specialties, valid dates, quantities and money; insert the new event and all functions atomically.
+- [x] Remove authenticated direct function INSERT and enforce immutable function event ownership, while retaining existing SELECT/UPDATE/DELETE policies.
+- [x] Update existing integration fixtures to use creation-time functions and run the complete rollback flow.
 
 ### Task 2: Creation form and request validation
 
@@ -44,14 +44,20 @@
 
 **Interfaces:** `buildEventCreation(fields: FormData, functionKeys: string[]): EventCreationInput` produces `{event, services}`. `EventCreationForm` receives clients, specialties, busy, and `onCreate(input): Promise<boolean>`; success resets the form and failure retains drafts.
 
-- [ ] Write failing tests for multiple functions, validation, optional empty functions and zero versus absent costs.
-- [ ] Implement the scoped creation form, add/remove rows and local validation; disable changes during submission.
-- [ ] Submit one RPC, preserve committed creation if the subsequent reload fails, and remove the old function insertion handler and form.
-- [ ] Verify form behavior on mobile and desktop, including failure/retry, reset, publication of existing functions, unchanged navigation and no overflow.
+- [x] Write failing tests for multiple functions, validation, optional empty functions and zero versus absent costs.
+- [x] Implement the scoped creation form, add/remove rows and local validation; disable changes during submission.
+- [x] Submit one RPC, preserve committed creation if the subsequent reload fails, and remove the old function insertion handler and form.
+- [x] Verify form behavior on mobile and desktop, including failure/retry, reset, publication of existing functions, unchanged navigation and no overflow.
 
 ### Task 3: Review and publication
 
-- [ ] Run `npm test`, `npm run typecheck`, `npm run build`, database checks and browser checks.
-- [ ] Request one independent code review and resolve substantive findings.
-- [ ] Publish the additive RPC before the new interface, then activate creation-only enforcement after production is ready.
-- [ ] Verify the production deployment, service worker, database privileges and preserved record counts.
+- [x] Run `npm test`, `npm run typecheck`, `npm run build`, database checks and browser checks.
+- [x] Request one independent code review and resolve substantive findings.
+- [x] Publish the additive RPC before the new interface, then activate creation-only enforcement after production is ready.
+- [x] Verify the production deployment, service worker, database privileges and preserved record counts.
+
+## Verified outcome
+
+Published to https://eventcore.space through PR #5. The additive RPC migration is `20261005093505`; creation-only enforcement is `20261005094634`, activated after production was READY. All three rollback database scripts pass after enforcement. The existing event and function record fingerprints are unchanged.
+
+Unit suite: 20/20. TypeScript and production build: passed. Browser navigation/layout: 105 checks. Interactive creation at 360, 390 and 1280 px: passed, including failure retention, duplicate-submit prevention, reset after committed creation with failed refresh, and publication management. Independent review: approved with no findings.
