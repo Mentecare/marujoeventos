@@ -100,6 +100,8 @@ export type WorkerHistory = { freelancer_id: string; full_name: string; city: st
 export type ProviderHistory = { organization_id: string; display_name: string; job_count: number; average_stars: number | null; review_count: number };
 export type ProviderPresentation = { id: string; display_name: string; organization_type: string; bio: string | null; specialties: string[]; average_stars: number | null; review_count: number; job_count: number };
 export type BuyerWorkStatus = { contract_id: string; sale_total: number; quote: SaleQuoteDTO; received_total: number; work: { event_id: string; name: string; venue: string; start_at: string; end_at: string | null; status: string; completion_confirmed: boolean } | null };
+/** Minimal discovery projection; finance membership does not imply operations access. */
+export type WorkFinanceIndex = { event_id: string; event_name: string; organization_id: string | null };
 export type WorkFinance = {
   event_id: string; sale_source: 'accepted_contract' | 'legacy_contracted_gross' | 'unknown';
   sale_contracted: number | null; sale_received: number | null; sale_receivable: number | null; sale_deductions: number;
@@ -146,6 +148,7 @@ export function workflowApi(db: SupabaseClient) {
     opportunities: () => rpc<WorkOpportunity[]>(db, 'get_work_opportunities'),
     workerAssignments: () => rpc<WorkerWorkAssignment[]>(db, 'get_my_work_assignments'),
     eventRemunerations: (eventId: string) => rpc<WorkerWorkAssignment[]>(db, 'get_event_remunerations', { p_event_id: eventId }),
+    financeIndex: () => rpc<WorkFinanceIndex[]>(db, 'get_work_finance_index'),
     finance: (eventId: string) => rpc<WorkFinance>(db, 'get_work_finance', { p_event_id: eventId }),
     recordExpense: (eventId: string, label: string, amount: number | null, receiptReference: string | null = null) => rpc<string>(db, 'record_work_expense', { p_event_id: eventId, p_label: label, p_amount: amount, p_receipt_reference: receiptReference }),
     payExpense: (expenseId: string, amount: number, method: CustomerReceipt['method'], paidOn: string, idempotencyKey: string) => rpc<string>(db, 'record_work_expense_payment', { p_expense_id: expenseId, p_amount: amount, p_method: method, p_paid_on: paidOn, p_idempotency_key: idempotencyKey }),
