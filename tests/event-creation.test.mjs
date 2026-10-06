@@ -77,3 +77,11 @@ test('event creation rejects missing details and invalid date ranges before requ
     { tolerance: '15.5' }, { status: 'completed' },
   ]) assert.throws(() => build(form(values), []), /evento|término|tolerância/i);
 });
+
+test('new daily conditions, origin and provider context are passed separately from legacy total costs', () => {
+  const fields = form({ organization_id: 'provider', origin: 'whatsapp' });
+  addFunction(fields, 'daily', { contract_days: '2', remuneration_basis: 'daily', remuneration_rate: '220', benefits: ' Meals ', additions: '0.1', deductions: '0.03', planned_hours: '8' });
+  const result = build(fields,['daily']);
+  assert.equal(result.event.organization_id,'provider'); assert.equal(result.event.origin,'whatsapp');
+  assert.deepEqual(result.services[0],{ specialty_id:'specialty-id',quantity_needed:2,reserve_target:1,contract_days:2,freelancer_unit_cost:440.07,briefing:null,requirements:null,open_marketplace:false,remuneration_basis:'daily',remuneration_rate:220,benefits:'Meals',additions:0.1,deductions:0.03,planned_hours:8 });
+});
