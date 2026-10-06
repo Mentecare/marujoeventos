@@ -237,6 +237,10 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .profilePhotoSection { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; min-width: 0; }
 .profilePhotoSection, #profile-data { scroll-margin-top: 100px; }
 .profilePhotoSection h3, .professionalPhotos h3 { margin-top: 0; }
+.quotePdfTools { display: grid; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.quotePdfOptions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.quotePdfOptions .subtle { margin-right: auto; }
+.quotePdfPreview { width: 100%; min-height: 520px; border: 1px solid var(--border); border-radius: 12px; background: #f5f8f6; }
 .profilePhotoPreview { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin: 16px 0; }
 .photoUploadFields { border: 0; padding: 0; margin: 0; display: grid; gap: 14px; min-width: 0; }
 .photoUploadFields .input[type=file] { max-width: 100%; padding: 10px; font-size: .85rem; }
