@@ -1,0 +1,96 @@
+{
+  "checked_at": "2026-10-08T16:31:49.813Z",
+  "github": {
+    "repository": "Mentecare/marujoeventos",
+    "pr": 9,
+    "head": "e64ebdddca9bcae7693b6330ba5412b5d99553fa",
+    "base": "f37f6b303269d739c84c947cf301d267b753560b",
+    "draft": true,
+    "merged": false
+  },
+  "ci": {
+    "run_id": 37807230588,
+    "job_id": 113414569877,
+    "conclusion": "failure",
+    "successful": [
+      "npm ci",
+      "npm test (80/80)",
+      "next build",
+      "typecheck",
+      "Playwright/Chromium install"
+    ],
+    "failed": "PDF deployment trace: post-build npm installation removed a traced musl library",
+    "skipped": [
+      "quote-pdf.integration",
+      "aligned-flows.browser",
+      "notifications.integration"
+    ]
+  },
+  "vercel": {
+    "project_id": "prj_9eJO2JYCeB0458inwbIW0NhaXzsZ",
+    "deployment_id": "dpl_A2jYvuujvTKA4SCcb6b7fuMNRiGx",
+    "url": "marujoeventos-ocxv0eplj-douglas-factory-project.vercel.app",
+    "state": "READY",
+    "commit": "e64ebdddca9bcae7693b6330ba5412b5d99553fa",
+    "target": null,
+    "http": {
+      "root": 200,
+      "sw": 200,
+      "unknown_public_valid_uuid": 404,
+      "pdf_invalid_uuid": 404,
+      "pdf_valid_uuid_auth_proof": "not verified: plugin deployment_authentication_required 401; application body unavailable"
+    }
+  },
+  "supabase": {
+    "project_id": "mzwlchgxkuqptiqyznqd",
+    "applied_count": 29,
+    "last": {
+      "version": "20261005151147",
+      "name": "eventcore_function_contract_days"
+    },
+    "pending_count": 5
+  },
+  "delivery": {
+    "env_entries_count": 18,
+    "configured_names": [
+      {
+        "key": "NOTIFICATION_VAPID_SUBJECT",
+        "target": [
+          "preview"
+        ],
+        "gitBranch": "feature/eventcore-aligned-flows-20261005",
+        "type": "plain"
+      }
+    ],
+    "missing": [
+      "NOTIFICATION_VAPID_PUBLIC_KEY",
+      "NOTIFICATION_VAPID_PRIVATE_KEY",
+      "NOTIFICATION_DISPATCH_SECRET",
+      "RESEND_API_KEY",
+      "NOTIFICATION_EMAIL_FROM"
+    ],
+    "prior_automatic_review_rejection": "New private VAPID credential storage in existing Vercel project requires exact secret/destination authorization; no retry performed"
+  },
+  "followup": {
+    "trace_fix_local_commit": "776adf46fc89c58479957f773cdbfc9a2205296b",
+    "trace_scoped_review": "PASS/PASS",
+    "postcss_security_patch": {
+      "local_commit": "1f0eaba8846ba4f9e09f1c20d2c0a1a18c81adff",
+      "scoped_review": "PASS/PASS",
+      "tests": "87/87",
+      "behavioral": "4 RED before patch; 7/7 GREEN including3 legitimate controls",
+      "audit": "0 vulnerabilities",
+      "build_type_trace_browser": "PASS; provider/finance390; limited editor detached wait",
+      "hosted_ci": "not yet run for this corrected version"
+    },
+    "remote_recheck": "pending publication of reviewed followup"
+  },
+  "no_actions": [
+    "no live DDL",
+    "no main merge",
+    "no production promotion",
+    "no real sends",
+    "no scheduler activation",
+    "no existing secrets decrypted"
+  ]
+}

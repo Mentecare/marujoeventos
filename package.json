@@ -27,5 +27,10 @@
     "@types/web-push": "3.6.4",
     "typescript": "^5.7.2"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "next": {
+      "postcss": "8.5.23"
+    }
+  }
 }
