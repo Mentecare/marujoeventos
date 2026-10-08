@@ -83,6 +83,12 @@ export function businessRevenue(data: RevenueData, period = currentRevenuePeriod
   }
   const hasValues = recordedEventCount > 0 || events.length === 0;
   return {
+    // Historical gross is contracted sale; there is no receipt source in this DTO.
+    contractedSale: hasValues && missingEventIds.length === 0 ? gross / 100 : null,
+    receivedSale: null,
+    receivableSale: null,
+    estimatedResult: hasValues && missingEventIds.length === 0 && missingCostEventIds.length === 0 ? (gross - deductions - extras - costs) / 100 : null,
+    resultLabel: 'estimated_before_unresolved_expenses_and_taxes' as const,
     grossRevenue: hasValues ? gross / 100 : null,
     netRevenue: hasValues && missingCostEventIds.length === 0 ? (gross - deductions - extras - costs) / 100 : null,
     teamCosts: costs / 100,

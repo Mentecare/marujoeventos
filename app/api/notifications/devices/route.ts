@@ -1,0 +1,5 @@
+import {notificationActor,notificationFailure,notificationHeaders,notificationJson} from '@/lib/notification-server';
+export const dynamic='force-dynamic';
+export async function GET(request:Request){try{await notificationActor(request);const key=process.env.NOTIFICATION_VAPID_PUBLIC_KEY;return Response.json({enabled:!!key,public_key:key||null},{headers:notificationHeaders})}catch(error){return notificationFailure(error)}}
+export async function POST(request:Request){try{const actor=await notificationActor(request),body=await notificationJson(request);const id=await actor.api.registerDevice(body);return Response.json({id},{status:201,headers:notificationHeaders})}catch(error){return notificationFailure(error)}}
+export async function DELETE(request:Request){try{const actor=await notificationActor(request);const id=new URL(request.url).searchParams.get('id');if(!id)throw new Error('invalid_preferences');await actor.api.removeDevice(id);return Response.json({removed:true},{headers:notificationHeaders})}catch(error){return notificationFailure(error)}}

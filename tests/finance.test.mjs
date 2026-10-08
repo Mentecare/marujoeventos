@@ -96,3 +96,20 @@ test('a missing contracted cost keeps net revenue unknown instead of inventing p
   assert.equal(result.netRevenue, null);
   assert.deepEqual(result.missingCostEventIds, ['october']);
 });
+
+
+test('legacy contracted gross exposes no fabricated receipt and labels the result as estimated', () => {
+  const result = businessRevenue(data, currentRevenuePeriod(now), now);
+  assert.equal(result.contractedSale,100.10);
+  assert.equal(result.receivedSale,null);
+  assert.equal(result.receivableSale,null);
+  assert.equal(result.estimatedResult,45.95);
+  assert.equal(result.resultLabel,'estimated_before_unresolved_expenses_and_taxes');
+});
+
+test('an incomplete contracted-sale period keeps the canonical estimated result unknown', () => {
+  const unpriced={id:'unpriced',start_at:'2026-10-04T12:00:00Z',status:'confirmed'};
+  const result=businessRevenue({...data,events:[...data.events,unpriced]},currentRevenuePeriod(now),now);
+  assert.equal(result.contractedSale,null);assert.equal(result.estimatedResult,null);
+  assert.equal(result.grossRevenue,100.10);assert.deepEqual(result.missingEventIds,['unpriced']);
+});

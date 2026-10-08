@@ -12,3 +12,10 @@ export function validateDocument(type:DocumentType,value:string){
   const d1=digit(c.slice(0,12),[5,4,3,2,9,8,7,6,5,4,3,2]);
   return d1===Number(c[12])&&digit(c.slice(0,12)+d1,[6,5,4,3,2,9,8,7,6,5,4,3,2])===Number(c[13]);
 }
+
+/** Check-digit validity only: this is not a Receita identity verification. */
+export function parseDocument(value: string): { type: DocumentType; number: string } | null {
+  const number = normalizeDocument('cnpj', value);
+  const type: DocumentType = number.length === 11 ? 'cpf' : 'cnpj';
+  return validateDocument(type, number) ? { type, number } : null;
+}

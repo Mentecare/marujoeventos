@@ -3,7 +3,8 @@ import { serviceSupabase } from "@/lib/supabase-server";
 import { PhotoError } from "@/lib/profile-photo-input";
 import type { ProfilePhotoCollection } from "@/lib/profile-photos";
 
-export const PROFILE_PHOTO_BUCKET = "eventcore-profile-photos";
+import { PROFILE_PHOTO_BUCKET } from "@/lib/profile-photos";
+export { PROFILE_PHOTO_BUCKET } from "@/lib/profile-photos";
 export const PHOTO_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function photoActor(request: Request) {
@@ -43,8 +44,10 @@ export async function drainPhotoCleanup(actor: Awaited<ReturnType<typeof photoAc
   if (finished.error) console.warn("profile_photo_cleanup_deferred");
 }
 
-export async function signedPhotoCollection(actor: Awaited<ReturnType<typeof photoActor>>, freelancerId: string | null): Promise<ProfilePhotoCollection> {
-  const result = await actor.db.rpc("get_profile_photo_collection", { p_freelancer_id: freelancerId });
+export async function signedPhotoCollection(actor: Awaited<ReturnType<typeof photoActor>>, freelancerId: string | null, organizationId: string | null = null): Promise<ProfilePhotoCollection> {
+  const result = organizationId
+    ? await actor.db.rpc("get_provider_photo_collection", { p_organization_id: organizationId })
+    : await actor.db.rpc("get_profile_photo_collection", { p_freelancer_id: freelancerId });
   if (result.error) photoRpcError(result.error);
   const rows = (result.data || []) as { id: string; kind: "avatar" | "portfolio"; caption: string | null; object_path: string; created_at: string }[];
   if (!rows.length) return { avatar: null, portfolio: [] };

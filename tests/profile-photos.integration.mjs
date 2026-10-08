@@ -7,7 +7,7 @@ import { startPhotoBoundary, photoToken, PHOTO_OTHER, PHOTO_FREELANCER, PHOTO_SE
 const boundary=await startPhotoBoundary();
 const port=20000+Math.floor(Math.random()*30000),base=`http://127.0.0.1:${port}/api/profile/photos`;
 const server=spawn(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','127.0.0.1','--port',String(port)],{env:{...process.env,SUPABASE_SERVICE_ROLE_KEY:PHOTO_SERVER_KEY},stdio:['ignore','ignore','pipe']});
-server.stderr.on('data',chunk=>process.stderr.write(chunk));
+let diagnostics='';server.stderr.on('data',chunk=>{diagnostics+=chunk;process.stderr.write(chunk)});
 const bytes=await sharp({create:{width:16,height:12,channels:3,background:'#445566'}}).jpeg().toBuffer();
 const auth={Authorization:`Bearer ${photoToken()}`};
 async function upload({kind='portfolio',declaration='true',file=bytes,type='image/jpeg'}={}) {
@@ -75,5 +75,6 @@ try {
   assert.ok(!boundary.photos.has(missing.id),'A missing object can still be removed by its owner');
   boundary.state.failSign=true;
   assert.equal((await fetch(base,{headers:auth})).status,503);
+  assert.equal((diagnostics.match(/profile_photo_cleanup_deferred/g)||[]).length,2,'exact fault-injected cleanup diagnostics; unexpected extra warnings fail');
   console.log('PASS: real Next API and Sharp; auth, declaration, invalid/large files, normalization, avatar replacement, quota/cleanup, deletion retry/idempotency, owner isolation, contractor gallery and private signing');
 } finally {server.kill();await boundary.close();}

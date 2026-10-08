@@ -43,11 +43,11 @@ export function RevenueDashboard({ data, period, loaded, loading, onPeriodChange
     {error && <p className="error" role="alert">{error}</p>}
     <div className="metrics revenueMetrics" aria-live="polite">
       <div className="metric"><span>Receita bruta</span><strong>{brl(revenue.grossRevenue)}</strong><small>{revenue.recordedEventCount} {revenue.recordedEventCount === 1 ? "evento com valor informado" : "eventos com valor informado"}</small></div>
-      <div className="metric"><span>Receita líquida</span><strong>{brl(revenue.netRevenue)}</strong><small>{revenue.missingCostEventIds.length ? "Há custos a confirmar" : "Após custos e deduções registrados"}</small></div>
+      <div className="metric"><span>Resultado estimado</span><strong>{brl(revenue.netRevenue)}</strong><small>{revenue.missingCostEventIds.length ? "Há custos a confirmar" : "Antes de despesas não resolvidas e impostos"}</small></div>
     </div>
     <p className="subtle revenueExplanation">Líquida = bruta − equipe ({brl(revenue.teamCosts)}) − despesas extras ({brl(revenue.extraCosts)}) − impostos e descontos ({brl(revenue.deductions)}). Eventos cancelados não entram.</p>
     {revenue.missingEventIds.length > 0 && <div className="revenuePending" role="status"><p>{revenue.recordedEventCount ? "Totais parciais. " : "Receitas aguardando valores. "}{revenue.missingEventIds.length} {revenue.missingEventIds.length === 1 ? "evento sem valor cobrado não foi incluído" : "eventos sem valor cobrado não foram incluídos"}. Informe os valores em Eventos → Pagamentos.</p><div className="actions">{revenue.missingEventIds.slice(0, 5).map(id => <button className="btn secondary" type="button" key={id} onClick={() => onOpenEvent(id)}>Informar valores: {eventName(id)}</button>)}</div></div>}
-    {revenue.missingCostEventIds.length > 0 && <div className="revenuePending" role="status"><p>Confirme os valores das contratações para calcular a receita líquida.</p><div className="actions">{revenue.missingCostEventIds.slice(0, 5).map(id => <button className="btn secondary" type="button" key={id} onClick={() => onOpenEvent(id)}>Conferir custos: {eventName(id)}</button>)}</div></div>}
+    {revenue.missingCostEventIds.length > 0 && <div className="revenuePending" role="status"><p>Confirme os valores das contratações para calcular a resultado estimado.</p><div className="actions">{revenue.missingCostEventIds.slice(0, 5).map(id => <button className="btn secondary" type="button" key={id} onClick={() => onOpenEvent(id)}>Conferir custos: {eventName(id)}</button>)}</div></div>}
   </section>;
 }
 

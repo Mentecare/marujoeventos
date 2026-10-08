@@ -11,9 +11,11 @@ export async function GET(request: Request) {
   try {
     const actor = await photoActor(request);
     await drainPhotoCleanup(actor);
-    const id = new URL(request.url).searchParams.get("freelancer_id");
+    const params = new URL(request.url).searchParams;
+    const id = params.get("freelancer_id"), organization = params.get("organization_id");
+    if ((organization !== null && !PHOTO_UUID.test(organization)) || (organization !== null && id !== null)) throw new PhotoError("photo_not_found", 404);
     if (id !== null && !PHOTO_UUID.test(id)) throw new PhotoError("photo_not_found", 404);
-    return Response.json(await signedPhotoCollection(actor, id), { headers });
+    return Response.json(await signedPhotoCollection(actor, id, organization), { headers });
   } catch (error) { return photoFailure(error); }
 }
 

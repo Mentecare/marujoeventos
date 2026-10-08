@@ -35,7 +35,7 @@ test('unavailable and refreshing revenue do not claim zero receipts', () => {
 test('loaded revenue offers gross/net cards and two date fields capped at today', () => {
   const html = renderToStaticMarkup(React.createElement(RevenueDashboard, props));
   assert.ok(html.includes('Receita bruta'));
-  assert.ok(html.includes('Receita líquida'));
+  assert.ok(html.includes('Resultado estimado'));
   assert.equal((html.match(/type="date"/g) ?? []).length, 2);
   assert.equal((html.match(new RegExp(`max="${finance.revenueDateKey(new Date())}"`, 'g')) ?? []).length, 2);
 });

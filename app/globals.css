@@ -237,6 +237,10 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .profilePhotoSection { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; min-width: 0; }
 .profilePhotoSection, #profile-data { scroll-margin-top: 100px; }
 .profilePhotoSection h3, .professionalPhotos h3 { margin-top: 0; }
+.quotePdfTools { display: grid; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.quotePdfOptions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.quotePdfOptions .subtle { margin-right: auto; }
+.quotePdfPreview { width: 100%; min-height: 520px; border: 1px solid var(--border); border-radius: 12px; background: #f5f8f6; }
 .profilePhotoPreview { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin: 16px 0; }
 .photoUploadFields { border: 0; padding: 0; margin: 0; display: grid; gap: 14px; min-width: 0; }
 .photoUploadFields .input[type=file] { max-width: 100%; padding: 10px; font-size: .85rem; }
@@ -254,3 +258,19 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .professionalPhotos .sectionHead { align-items: flex-start; flex-wrap: wrap; }
 .reputationModal .portfolioGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media(max-width:600px) { .portfolioGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .profilePhotoSection { padding: 16px; } .profilePhotoSection .sectionHead { align-items: start; flex-wrap: wrap; } }
+
+/* Scoped workflows retain the approved white/green panels and mobile shell. */
+.commercialWorkspace { display:grid; gap:18px; min-width:0; }
+.commercialWorkspace .panel, .functionDraft, #business-setup { min-width:0; overflow-wrap:anywhere; }
+.commercialWorkspace fieldset, .functionDraft fieldset { min-width:0; }
+.commercialWorkspace .actions, .functionDraft .actions { flex-wrap:wrap; }
+.functionDraft details { margin-top:12px; }
+#business-setup { scroll-margin-top:90px; }
+@media(max-width:600px) { .commercialWorkspace .sectionHead { flex-wrap:wrap; gap:10px; } .functionDraft .formGrid { grid-template-columns:1fr; } }
+
+/* Keep complete BRL values readable inside nested work-finance cards. */
+.workFinanceMetrics .metric strong { white-space:nowrap; }
+@media(max-width:600px) { .workFinanceMetrics { grid-template-columns:1fr; } .workFinanceMetrics .metric strong { font-size:clamp(1rem,4.8vw,1.45rem); white-space:nowrap; } }
+
+.accountMenu summary { position: relative; }
+.notificationBadge { position:absolute; right:-5px; top:-4px; min-width:18px; height:18px; padding:0 4px; border-radius:10px; background:#156341; color:white; font-size:11px; line-height:18px; text-align:center; }

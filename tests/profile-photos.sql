@@ -76,8 +76,10 @@ do $$ declare denied boolean; p uuid; result jsonb; rows jsonb; old_path text; b
   exception when raise_exception then if sqlerrm='invalid_photo_object' then denied:=true;else raise;end if;end;
   if not denied then raise exception 'another_owners_staged_object_used';end if;
   perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.photo_business'),'role','authenticated')::text,true);
-  rows:=public.get_profile_photo_collection(current_setting('test.photo_freelancer')::uuid);
-  if jsonb_array_length(rows)<>11 then raise exception 'contractor_cannot_see_profile';end if;
+  denied:=false;
+  begin perform public.get_profile_photo_collection(current_setting('test.photo_freelancer')::uuid);
+  exception when raise_exception then if sqlerrm='forbidden' then denied:=true;else raise;end if;end;
+  if not denied then raise exception 'unrelated_business_reads_private_portfolio';end if;
   perform set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.photo_inactive'),'role','authenticated')::text,true);
   denied:=false;
   begin perform public.get_profile_photo_collection();

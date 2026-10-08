@@ -112,7 +112,7 @@ export function ProfilePhotoEditor({ name, photos, loading, loadError, onRefresh
   </section>;
 }
 
-export function ProfessionalPhotos({ freelancerId, name }: { freelancerId: string; name: string }) {
+export function ProfessionalPhotos({ freelancerId, organizationId, name }: { freelancerId?: string; organizationId?: string; name: string }) {
   const [photos, setPhotos] = useState<ProfilePhotoCollection>(EMPTY_PHOTOS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -120,11 +120,11 @@ export function ProfessionalPhotos({ freelancerId, name }: { freelancerId: strin
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError(""); setPhotos(EMPTY_PHOTOS);
-    requestProfilePhotos(`?freelancer_id=${encodeURIComponent(freelancerId)}`, { signal: controller.signal }).then(setPhotos).catch(error => {
+    requestProfilePhotos(organizationId ? `?organization_id=${encodeURIComponent(organizationId)}` : `?freelancer_id=${encodeURIComponent(freelancerId||'')}`, { signal: controller.signal }).then(setPhotos).catch(error => {
       if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Não foi possível carregar o portfólio.");
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [freelancerId, attempt]);
+  }, [freelancerId, organizationId, attempt]);
   return <section className="professionalPhotos" aria-label="Fotos do perfil profissional">
     {photos.avatar && <div className="profilePhotoPreview"><ProfileAvatar url={photos.avatar.url} name={name} large/></div>}
     <div className="sectionHead"><h3>Fotos de trabalhos</h3><button className="btn secondary" type="button" disabled={loading} onClick={() => setAttempt(value => value + 1)}>Atualizar fotos</button></div>

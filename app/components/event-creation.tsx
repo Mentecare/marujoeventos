@@ -3,13 +3,16 @@
 import { type FormEvent, useRef, useState } from "react";
 import { buildEventCreation, type EventCreationInput } from "@/lib/event-creation";
 
-export function EventCreationForm({ clients, specialties, busy, onCreate }: {
+export function EventCreationForm({ clients, specialties, busy, onCreate, organizationId, contracts = [] }: {
   clients: { id: string; trade_name: string }[];
   specialties: { id: string; name: string; active: boolean }[];
+  organizationId?: string;
+  contracts?: {id:string;client_id:string;quote_snapshot:{title:string}}[];
   busy: boolean;
   onCreate: (input: EventCreationInput) => Promise<boolean>;
 }) {
   const [functionKeys, setFunctionKeys] = useState<string[]>([]);
+  const [contract,setContract]=useState('');
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const sequence = useRef(0), submitting = useRef(false);
@@ -24,7 +27,7 @@ export function EventCreationForm({ clients, specialties, busy, onCreate }: {
     try {
       const input = buildEventCreation(new FormData(form), functionKeys);
       submitting.current = true; setSaving(true);
-      if (await onCreate(input)) { form.reset(); setFunctionKeys([]); }
+      if (await onCreate(input)) { form.reset(); setFunctionKeys([]); setContract(''); }
     } catch (error) {
       setError(error instanceof Error ? error.message : "Não foi possível criar o evento. Confira os dados e tente novamente.");
     } finally { submitting.current = false; setSaving(false); }
@@ -33,11 +36,15 @@ export function EventCreationForm({ clients, specialties, busy, onCreate }: {
   return <form className="panel form eventCreationForm" onSubmit={submit}>
     <h2>Novo evento</h2>
     <fieldset className="eventCreationFields" disabled={locked}>
+<input type="hidden" name="organization_id" value={organizationId||''}/><input type="hidden" name="commercial_contract_id" value={contract}/>
+      <label>Origem do trabalho<select className="select" name="origin" defaultValue="other"><option value="other">Outro</option><option value="platform">Plataforma</option><option value="whatsapp">WhatsApp</option><option value="referral">Indicação</option></select></label>
+      <label>Contrato aceito (opcional)<select className="select" value={contract} onChange={e=>setContract(e.target.value)}><option value="">Trabalho externo</option>{contracts.map(c=><option key={c.id} value={c.id}>{c.quote_snapshot.title}</option>)}</select></label>
       <label>Nome do evento<input className="input" name="name" required/></label>
-      <label>Cliente<select className="select" name="client_id" required><option value="">Selecione</option>{clients.map(client => <option key={client.id} value={client.id}>{client.trade_name}</option>)}</select></label>
+      {contract?<><p>Cliente do contrato aceito</p><input type="hidden" name="client_id" value={contracts.find(c=>c.id===contract)?.client_id||''}/></>:<label>Cliente<select className="select" name="client_id" required><option value="">Selecione</option>{clients.map(client => <option key={client.id} value={client.id}>{client.trade_name}</option>)}</select></label>}
       <label>Local<input className="input" name="venue" required/></label>
       <div className="formGrid"><label>Início<input className="input" name="start_at" type="datetime-local" required/></label><label>Término<input className="input" name="end_at" type="datetime-local" required/></label></div>
       <div className="formGrid"><label>Status<select className="select" name="status" defaultValue="planning"><option value="planning">Planejamento</option><option value="staffing">Montando equipe</option><option value="confirmed">Confirmado</option></select></label><label>Tolerância de chegada (min)<input className="input" name="tolerance" type="number" min="0" max="180" step="1" defaultValue="15"/></label></div>
+      <label>Região pública (sem endereço exato)<input className="input" name="public_region" maxLength={150}/></label>
       <label>Observações internas<textarea className="textarea" name="notes"/></label>
       <section className="eventCreationFunctions" aria-label="Funções na criação do evento">
         <h3>Funções e vagas</h3>
@@ -48,9 +55,15 @@ export function EventCreationForm({ clients, specialties, busy, onCreate }: {
           <label>Especialidade<select className="select" name={`function.${key}.specialty_id`} required defaultValue=""><option value="">Selecione</option>{availableSpecialties.map(specialty => <option key={specialty.id} value={specialty.id}>{specialty.name}</option>)}</select></label>
           <div className="formGrid"><label>Vagas<input className="input" name={`function.${key}.quantity_needed`} type="number" min="1" max="2147483647" step="1" defaultValue="1" required/></label><label>Reservas<input className="input" name={`function.${key}.reserve_target`} type="number" min="0" max="2147483647" step="1" defaultValue="0"/></label></div>
           <label>Dias de contratação<input className="input" name={`function.${key}.contract_days`} type="number" inputMode="numeric" min="1" max="2147483647" step="1" defaultValue="1" required/></label>
-          <label>Valor total por profissional (R$)<input className="input" name={`function.${key}.cost`} type="number" inputMode="decimal" min="0" max="9999999999.99" step="0.01"/></label>
+          <label>Base de remuneração<select className="select" name={`function.${key}.remuneration_basis`} defaultValue="daily"><option value="daily">Diária</option><option value="service">Por serviço</option></select></label>
+          <label>Taxa por profissional (R$)<input className="input" name={`function.${key}.remuneration_rate`} type="number" min="0" step="0.01" required/></label>
+          <p className="subtle">Diária × dias, ou total por serviço, mais acréscimos menos descontos. Quantidade de vagas não multiplica o valor de um profissional.</p>
+          <label>Horas previstas<input className="input" name={`function.${key}.planned_hours`} type="number" min="0" max="9999.99" step="0.01"/></label>
+          <label>Benefícios<textarea className="textarea" name={`function.${key}.benefits`} maxLength={2000}/></label>
+          <div className="formGrid"><label>Acréscimos (R$)<input className="input" name={`function.${key}.additions`} type="number" min="0" step="0.01" defaultValue="0"/></label><label>Descontos (R$)<input className="input" name={`function.${key}.deductions`} type="number" min="0" step="0.01" defaultValue="0"/></label></div>
           <label>Briefing<textarea className="textarea" name={`function.${key}.briefing`}/></label>
           <label>Requisitos<textarea className="textarea" name={`function.${key}.requirements`}/></label>
+          <label>Descrição pública<textarea className="textarea" name={`function.${key}.public_description`} maxLength={2000}/></label>
           <label className="check"><input name={`function.${key}.open_marketplace`} type="checkbox"/>Publicar em Oportunidades</label>
         </fieldset>)}
         {!functionKeys.length && <p className="subtle">Nenhuma função incluída. Se precisar de equipe, adicione as funções agora.</p>}
@@ -58,8 +71,8 @@ export function EventCreationForm({ clients, specialties, busy, onCreate }: {
         {!availableSpecialties.length && <small className="subtle">As especialidades ainda não estão disponíveis. Atualize para carregar as opções.</small>}
       </section>
       {error && <p className="error" role="alert">{error}</p>}
-      <button className="btn" disabled={!clients.length}>{saving ? "Criando evento…" : "Criar evento"}</button>
-      {!clients.length && <small className="subtle">Cadastre um cliente da sua organização antes de criar um evento.</small>}
+      <button className="btn" disabled={!clients.length&&!contracts.length}>{saving ? "Criando evento…" : "Criar evento"}</button>
+      {!clients.length&&!contracts.length && <small className="subtle">Cadastre um cliente da sua organização antes de criar um evento.</small>}
     </fieldset>
   </form>;
 }

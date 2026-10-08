@@ -1,0 +1,289 @@
+"use client";
+import { useEffect, useState } from 'react';
+import { workflowApi, type EventOperations, type CommercialOrganization, type ProviderPeople, type WorkerWorkAssignment, type WorkFinance } from '@/lib/commercial';
+import { acceptedAmount, mutableWork } from '@/lib/work-presentation';
+import { supabase } from '@/lib/supabase-browser';
+import { money, useMutation } from './workflow-ui';
+import { WorkFinancePanel } from './work-finance';
+type Application = {
+  id: string;
+  freelancer_id: string;
+  event_service_id: string;
+  status: string;
+};
+export function WorkDetail({ operations, organization, identityComplete, remunerations, finance, applications, directory, refresh, onProfile }: {
+  operations: EventOperations;
+  organization?: CommercialOrganization;
+  identityComplete: boolean;
+  remunerations: WorkerWorkAssignment[];
+  finance?: WorkFinance;
+  applications: Application[];
+  directory: {
+    freelancer_id: string;
+    full_name: string;
+  }[];
+  refresh: () => Promise<void>;
+  onProfile: (id: string) => void;
+}) {
+  const api = workflowApi(supabase), m = useMutation(refresh);
+  const [pane, setPane] = useState('functions'), [people, setPeople] = useState<ProviderPeople>({ base: [], teams: [] }), [selected, setSelected] = useState<string[]>([]), [peopleError, setPeopleError] = useState('');
+  const event = operations.event, open = !['completed', 'cancelled'].includes(event.status), canHire = operations.can_hire && identityComplete && mutableWork(event.status, event.end_at);
+  useEffect(() => {
+    let active = true; setPeople({ base: [], teams: [] }); setSelected([]); if (organization?.market_role === 'provider' && organization.can_operate)
+      api.people(organization.id).then(p => {
+        if (active)
+          setPeople(p);
+      }).catch(e => {
+        if (active)
+          setPeopleError(e.message);
+      }); return () => { active = false; };
+  }, [organization?.id]);
+  const name = (id: string) => directory.find(p => p.freelancer_id === id)?.full_name || people.base.find(p => p.freelancer_id === id)?.full_name || 'Profissional';
+  return <>
+    <nav className="eventTabs" aria-label="Etapas do evento">{[['functions', 'Funções e vagas'], ['applications', 'Candidaturas'], ['team', 'Escala'], ['attendance', 'Presença'], ...(operations.can_finance ? [['finance', 'Pagamentos']] : []), ['reviews', 'Avaliações']].map(([id, label]) =>
+      <button
+        key={id}
+        className={pane === id ? 'active' : ''}
+        onClick={() => setPane(id)}>{label}
+      </button>)}
+    </nav>{m.feedback}
+    {pane === 'functions' &&
+      <section className="panel">
+        <h3>Funções do evento
+        </h3>
+        <p className="subtle">Funções, quantidades, dias e condições iniciais foram definidos na criação. Publicação não modifica as condições.
+        </p>{operations.services.map(s =>
+          <article className="operationRow" key={s.id}>
+            <div>
+              <strong>{s.label}
+              </strong>
+              <span>{s.quantity_needed} vagas · {s.reserve_target} reservas · {s.contract_days == null ? 'Dias de contratação não informados' : `${s.contract_days} dias de contratação`} · {s.planned_hours == null ? 'Horas não informadas' : `${s.planned_hours} horas`}
+              </span>
+              <span>{s.visibility === 'open' ? 'Publicada' : 'Privada'}
+              </span>{s.briefing &&
+                <span>{s.briefing}
+                </span>}
+            </div>{open && operations.can_hire &&
+              <button
+                className="btn secondary"
+                disabled={m.busy || !identityComplete}
+                onClick={() => m.run(() => api.publishFunction(s.id, s.visibility !== 'open'), 'Publicação atualizada.')}>{s.visibility === 'open' ? 'Fechar vaga' : 'Publicar vaga'}
+              </button>}
+          </article>)}{!operations.services.length &&
+            <p className="empty">Este evento não possui funções. Elas são definidas somente na criação.
+            </p>}
+      </section>}
+    {pane === 'applications' &&
+      <section className="panel">
+        <h3>Candidaturas recebidas
+        </h3>{applications.map(a =>
+          <article className="operationRow" key={a.id}>
+            <div>
+              <strong>{name(a.freelancer_id)}
+              </strong>
+              <span>{a.status}
+              </span>
+            </div>{canHire && ['interested', 'shortlisted'].includes(a.status) &&
+              <button
+                className="btn"
+                disabled={m.busy}
+                onClick={() => m.run(() => api.hireApplication(a.id), 'Profissional convidado. O aceite é do trabalhador.')}>Contratar
+              </button>}
+          </article>)}{!applications.length &&
+            <p className="empty">Nenhuma candidatura recebida.
+            </p>}
+      </section>}
+    {pane === 'team' &&
+      <section className="panel">
+        <h3>Equipe real deste trabalho
+        </h3>{operations.assignments.map(a =>
+          <article className="operationRow" key={a.id}>
+            <div>
+              <strong>{name(a.freelancer_id)}
+              </strong>
+              <span>{a.status}
+              </span>
+            </div>
+            <button className="btn secondary" onClick={() => onProfile(a.freelancer_id)}>Ver perfil profissional
+            </button>
+          </article>)}{!operations.assignments.length &&
+            <p className="empty">Nenhum profissional escalado.
+            </p>}{canHire &&
+              <form className="form" onSubmit={async (e) => {
+                e.preventDefault(); const f = new FormData(e.currentTarget); if (await m.run(() => api.inviteSelected(String(f.get('service')), selected), 'Convites enviados aos profissionais selecionados.'))
+                  setSelected([]);
+              }}>
+                <h3>Convites específicos
+                </h3>{peopleError &&
+                  <p className="error" role="alert">{peopleError}
+                  </p>}
+                <label>Função
+                  <select
+                    className="select"
+                    name="service"
+                    required>
+                    <option value="">Selecione
+                    </option>{operations.services.map(s =>
+                      <option key={s.id} value={s.id}>{s.label}
+                      </option>)}
+                  </select>
+                </label>
+                <label>Selecionar equipe habitual
+                  <select
+                    className="select"
+                    defaultValue=""
+                    onChange={e => setSelected(people.teams.find(t => t.id === e.target.value)?.freelancer_ids || [])}>
+                    <option value="">Selecionar manualmente
+                    </option>{people.teams.map(t =>
+                      <option key={t.id} value={t.id}>{t.name}
+                      </option>)}
+                  </select>
+                </label>
+                <fieldset>
+                  <legend>Base de profissionais
+                  </legend>{people.base.filter(p => p.active).map(p =>
+                    <label className="check" key={p.freelancer_id}>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(p.freelancer_id)}
+                        onChange={e => setSelected(ids => e.target.checked ? [...ids, p.freelancer_id] : ids.filter(id => id !== p.freelancer_id))} />{p.full_name}
+                    </label>)}{!people.base.length &&
+                      <p className="subtle">Adicione profissionais à base em Equipe.
+                      </p>}
+                </fieldset>
+                <button className="btn" disabled={m.busy || !selected.length}>Enviar convites específicos
+                </button>
+              </form>}
+      </section>}
+    {pane === 'attendance' &&
+      <section className="panel">
+        <h3>Presença e conclusão
+        </h3>
+        <p className="subtle">Os profissionais registram sua entrada e saída pela própria escala. Valide somente presença real.
+        </p>{operations.assignments.map(a =>
+          <div className="operationRow" key={a.id}>
+            <strong>{name(a.freelancer_id)} · {a.status}
+            </strong>{organization?.market_role !== 'buyer' && a.status === 'checked_out' &&
+              <button
+                className="btn secondary"
+                disabled={m.busy}
+                onClick={() => m.run(() => api.validateAttendance(a.id), 'Presença validada.')}>Validar presença
+              </button>}
+          </div>)}{organization?.market_role !== 'buyer' && open && event.end_at && new Date(event.end_at).getTime() < Date.now() &&
+            <button
+              className="btn"
+              disabled={m.busy}
+              onClick={() => m.run(() => api.completeEvent(event.id), 'Evento concluído.')}>Concluir evento
+            </button>}
+      </section>}
+    {pane === 'finance' && operations.can_finance &&
+      <>{finance ?
+        <WorkFinancePanel
+          finance={finance}
+          identityComplete={identityComplete}
+          refresh={refresh} /> :
+        <p className="error">Financeiro indisponível. Atualize os dados.
+        </p>}
+        <section className="panel">
+          <h3>Remuneração e pagamentos da equipe
+          </h3>{remunerations.map(a =>
+            <article className="functionDraft" key={a.id}>
+              <h4>{name(a.freelancer_id)} · {a.function_name}
+              </h4>
+              <p>Total aceito: {money(acceptedAmount(a))} · {a.accepted_terms ? `Revisão ${a.accepted_terms.revision}` : a.terms_history.length ? 'Aguardando aceite' : 'Total histórico'}
+              </p>{a.offered_terms && a.offered_terms.id !== a.accepted_terms?.id &&
+                <p>Oferta pendente: revisão {a.offered_terms.revision} · {money(a.offered_terms.total)}
+                </p>}{a.payments.map(p =>
+                  <p key={p.id}>{money(p.amount)} · {p.status} · {p.method}
+                  </p>)}{identityComplete && !a.payments.some(p => p.status === 'paid') && !['cancelled', 'reserve', 'no_show'].includes(a.status) &&
+                    <>{mutableWork(a.event_status, a.end_at) &&
+                      <TermsRevision
+                        assignment={a}
+                        service={operations.services.find(s => s.id === a.event_service_id)}
+                        busy={m.busy}
+                        submit={terms => m.run(() => api.proposeTerms(a.id, terms), 'Oferta de revisão enviada para aceite.')} />}
+                      <button
+                        className="btn secondary"
+                        disabled={m.busy || acceptedAmount(a) == null}
+                        onClick={() => m.run(() => api.pay(a.id, 'pix'), 'Pagamento registrado.')}>Registrar pagamento por Pix
+                      </button></>}
+            </article>)}{!remunerations.length &&
+              <p className="empty">Nenhuma remuneração de equipe.
+              </p>}
+        </section></>}
+    {pane === 'reviews' &&
+      <section className="panel">
+        <h3>Avaliações de relações confirmadas
+        </h3>
+        <p className="subtle">Conclua o evento e registre presença validada ou confirmação do trabalhador. Estrelas não substituem pontualidade.
+        </p>{remunerations.filter(a => a.can_review === true).map(a =>
+          <form
+            className="form functionDraft"
+            key={a.id}
+            onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void m.run(() => api.rateWorker(a.id, Number(f.get('rating')), String(f.get('comment')) || null), 'Avaliação registrada.'); }}>
+            <h4>{name(a.freelancer_id)}
+            </h4>
+            <label>Estrelas
+              <select className="select" name="rating">{[5, 4, 3, 2, 1].map(n =>
+                <option key={n}>{n}
+                </option>)}
+              </select>
+            </label>
+            <label>Comentário
+              <input
+                className="input"
+                name="comment"
+                maxLength={1000} />
+            </label>
+            <button className="btn" disabled={m.busy}>Registrar avaliação
+            </button>
+          </form>)}{!operations.can_finance &&
+            <p className="subtle">Avaliações e evidência de condições estão disponíveis ao responsável autorizado.
+            </p>}
+      </section>}</>;
+}
+function TermsRevision({ assignment: a, service, busy, submit }: {
+  service?: EventOperations['services'][number];
+  assignment: WorkerWorkAssignment;
+  busy: boolean;
+  submit: (terms: Parameters<ReturnType<typeof workflowApi>['proposeTerms']>[1]) => Promise<boolean>;
+}) {
+  const previous = a.offered_terms || a.accepted_terms; return <details>
+    <summary>Propor revisão de remuneração
+    </summary>
+    <form className="form" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void submit({ basis: String(f.get('basis')) as 'daily' | 'service', rate: Number(f.get('rate')), contract_days: previous ? previous.contract_days : service?.contract_days ?? null, planned_hours: previous ? previous.planned_hours : service?.planned_hours ?? null, benefits: String(f.get('benefits')) || null, additions: Number(f.get('additions') || 0), deductions: Number(f.get('deductions') || 0) }); }}>
+      <p>Dias e horas originais permanecem: {previous?.contract_days ?? 'não informados'} dias · {previous?.planned_hours ?? 'não informadas'} horas. Revisão só é válida após aceite explícito.
+      </p>
+      <label>Base
+        <select
+          className="select"
+          name="basis"
+          defaultValue={previous?.basis || 'service'}>
+          <option value="service">Serviço
+          </option>
+          <option value="daily">Diária
+          </option>
+        </select>
+      </label>{[['rate', 'Taxa', previous?.rate], ['additions', 'Acréscimos', previous?.additions], ['deductions', 'Descontos', previous?.deductions]].map(([name, label, value]) =>
+        <label key={String(name)}>{label}
+          <input
+            className="input"
+            name={String(name)}
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={value ?? ''}
+            required={name === 'rate'} />
+        </label>)}
+      <label>Benefícios
+        <input
+          className="input"
+          name="benefits"
+          defaultValue={previous?.benefits || ''}
+          maxLength={2000} />
+      </label>
+      <button className="btn" disabled={busy}>Propor revisão
+      </button>
+    </form>
+  </details>;
+}
