@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {pdfTool,python} from './runtime-tools.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -33,11 +34,25 @@ function tempPdf(name) {
 }
 
 function pdfText(file) {
-  return execFileSync('/usr/bin/pdftotext', [file, '-'], { encoding: 'utf8' });
+  return execFileSync(pdfTool('pdftotext'), [file, '-'], { encoding: 'utf8' });
+}
+
+function pdfLinks(file) {
+  return JSON.parse(execFileSync(python, ['-c', 'import fitz,json,sys; print(json.dumps([[dict(uri=link.get("uri"),rect=list(link["from"])) for link in page.get_links()] for page in fitz.open(sys.argv[1])]))', file], { encoding: 'utf8' }));
+}
+
+function assertPlatformLinkOnEveryPage(file) {
+  const pages = pdfLinks(file);
+  assert.equal(pages.length, pdfPages(file));
+  for (const [index, links] of pages.entries()) {
+    const platform = links.filter(link => link.uri === 'https://eventcore.space');
+    assert.equal(platform.length, 1, `page ${index + 1} must have one explicit platform URI annotation`);
+    assert.ok(platform[0].rect[1] >= 793 && platform[0].rect[3] <= 820, 'platform link covers the footer, not body content');
+  }
 }
 
 function pdfPages(file) {
-  const output = execFileSync('/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override/pdfinfo', [file], { encoding: 'utf8' });
+  const output = execFileSync(pdfTool('pdfinfo'), [file], { encoding: 'utf8' });
   return Number(output.match(/^Pages:\s+(\d+)/m)?.[1] || 0);
 }
 
@@ -50,6 +65,8 @@ test('PDF de totais e unitários usa moeda/data brasileiras e mantém o total ca
   const totals = pdfText(totalPath);
   assert.equal(pdfPages(unitPath), 1);
   assert.equal(pdfPages(totalPath), 1);
+  assertPlatformLinkOnEveryPage(unitPath);
+  assertPlatformLinkOnEveryPage(totalPath);
   assert.match(units, /Orçamento Aurora/);
   assert.match(units, /São Paulo/);
   assert.match(units, /R\$ 280,00/);
@@ -66,7 +83,7 @@ test('PDF converte timestamps para a data brasileira e quebra título extenso', 
   fs.writeFileSync(file, await renderQuotePdf(quote, { details: 'totals' }));
   const text = pdfText(file);
   assert.match(text, /06\/10\/2026/);
-  assert.match(text, /Orçamento muito extenso para uma operação\s+cenográfica/);
+  assert.match(text, /Orçamento muito extenso para uma\s+operação\s+cenográfica/);
   assert.equal(pdfPages(file), 1);
 });
 
@@ -84,10 +101,13 @@ test('PDF longo quebra páginas e repete marca d’água e rodapé em cada pági
   fs.writeFileSync(file, await renderQuotePdf(longQuote, { details: 'totals' }));
   const pages = pdfPages(file);
   assert.ok(pages > 1, `esperava mais de uma página, recebi ${pages}`);
+  assertPlatformLinkOnEveryPage(file);
   const text = pdfText(file);
   const pageTexts = text.split('\f').filter(Boolean);
   assert.equal(pageTexts.length, pages);
   for (const page of pageTexts) {
+    const normalized = page.replace(/\s+/g, ' ');
+    assert.equal((normalized.match(/Serviço de montagem e operação/g) || []).length, (normalized.match(/área cenográfica com orientação/g) || []).length, 'short rows must remain together on their page');
     assert.match(page, /EventCore/);
     assert.match(page, /Orçamento emitido pelo EventCore/);
     assert.match(page, /Página \d+ de \d+/);
@@ -139,3 +159,49 @@ test('rota diferencia falha de renderização de orçamento não encontrado', as
   });
   assert.equal(response.status, 500);
 });
+
+test('PDF mede nomes extensos, valores grandes e divide uma única linha maior que uma página sem cortar texto', async () => {
+  const file = tempPdf('edge-layout');
+  const quote = { ...baseQuote,
+    issuer: { ...baseQuote.issuer, display_name: 'WWWW Empresa de montagem e operações cenográficas '.repeat(5) },
+    client: { display_name: 'WWWW Cliente com razão social extensa e departamento de produção '.repeat(6) },
+    venue: 'WWWW Local de realização e endereço autorizado '.repeat(6),
+    items: [{ ...baseQuote.items[0], label: 'WWWW Estrutura cenográfica '.repeat(180) + 'FIM-DESCRICAO', client_unit_price: 99999999.99, line_total: 9999999999.99 }],
+    client_total: 9999999999.99,
+    freelancer_unit_cost: 'PRIVATE-DO-NOT-PRINT',
+  };
+  fs.writeFileSync(file, await renderQuotePdf(quote, { details: 'units' }));
+  const text = pdfText(file);
+  assert.match(text, /FIM-DESCRICAO/);
+  assert.match(text, /R\$ 9\.999\.999\.999,99/);
+  assert.doesNotMatch(text, /PRIVATE-DO-NOT-PRINT/);
+  const bbox = execFileSync(pdfTool('pdftotext'), ['-bbox', file, '-'], { encoding: 'utf8' });
+  for (const word of bbox.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)<\/word>/g)) {
+    if (word[5] === 'EventCore') continue; // diagonal watermark intentionally has its own box
+    assert.ok(+word[1] >= 47 && +word[3] <= 549, `horizontal clipping: ${word[5]} ${word[1]}..${word[3]}`);
+    assert.ok(+word[2] >= 40 && +word[4] <= 815, `vertical clipping: ${word[5]} ${word[2]}..${word[4]}`);
+  }
+  for (const page of text.split('\f').filter(Boolean)) {
+    assert.match(page, /Orçamento emitido pelo EventCore/);
+    assert.match(page, /Página \d+ de \d+/);
+  }
+});
+
+test('PDF incorpora bytes de marca confiáveis em vez de ignorar o avatar do emitente', async () => {
+  const { default: sharp } = await import('sharp');
+  const logo = await sharp({ create: { width: 40, height: 24, channels: 3, background: '#1e6b52' } }).png().toBuffer();
+  const file = tempPdf('issuer-logo');
+  fs.writeFileSync(file, await renderQuotePdf(baseQuote, { details: 'totals', issuerLogo: logo }));
+  const images = execFileSync(pdfTool('pdfimages'), ['-list', file], { encoding: 'utf8' });
+  assert.match(images, /\simage\s+40\s+24/);
+});
+
+ test('PDF preserves decomposed Portuguese and supported Cyrillic/Greek, rejects unsupported glyphs', async () => {
+ const file=tempPdf('unicode');
+ const q={...baseQuote,client:{display_name:'Agência São João'.normalize('NFD')},issuer:{...baseQuote.issuer,display_name:'Компания Αθήνα'},items:[{...baseQuote.items[0],label:'Montagem de cenário'.normalize('NFD')}]};
+ fs.writeFileSync(file,await renderQuotePdf(q));
+ const text=pdfText(file);
+ assert.match(text,/Agência São João/);assert.match(text,/Montagem de cenário/);assert.match(text,/Компания Αθήνα/);
+ await assert.rejects(renderQuotePdf({...baseQuote,client:{display_name:'東京'}}),/unsupported_pdf_text/);
+ await assert.rejects(renderQuotePdf({...baseQuote,title:'Contrato 🧑'}),/unsupported_pdf_text/);
+ });

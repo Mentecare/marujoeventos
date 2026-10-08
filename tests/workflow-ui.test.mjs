@@ -25,3 +25,14 @@ test('finance discovery adapter uses the caller RPC independently from event ope
  const denied=commercial.workflowApi({rpc:async()=>({data:null,error:{message:'forbidden'}})});
  await assert.rejects(denied.financeIndex(),/forbidden/);
 });
+
+test('unknown expense offers an audited resolution, and an unknown sale offers a later sale entry',()=>{
+ const html=renderToStaticMarkup(React.createElement(component('work-finance').WorkFinancePanel,{identityComplete:true,refresh:async()=>{},finance:{event_id:'work',sale_source:'unknown',sale_contracted:null,expenses:[{id:'expense',label:'Invoice pending',amount:null,paid:0}]}}));
+ assert.ok(html.includes('Confirmar valor da despesa'));assert.ok(html.includes('Registrar venda do trabalho'));
+});
+test('completed cancelled/reserve/no-show rows never offer worker completion',()=>{
+ for(const status of ['cancelled','reserve','no_show']){
+ const html=renderToStaticMarkup(React.createElement(component('worker-work').WorkerWork,{refresh:async()=>{},rows:[{id:status,status,event_status:'completed',event_name:'History',function_name:'Worker',start_at:'2026-01-01',end_at:'2026-01-02',terms_history:[],payments:[]}]}));
+ assert.ok(!html.includes('Confirmar trabalho concluído'),status);
+ }
+});

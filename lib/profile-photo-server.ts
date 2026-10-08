@@ -3,7 +3,8 @@ import { serviceSupabase } from "@/lib/supabase-server";
 import { PhotoError } from "@/lib/profile-photo-input";
 import type { ProfilePhotoCollection } from "@/lib/profile-photos";
 
-export const PROFILE_PHOTO_BUCKET = "eventcore-profile-photos";
+import { PROFILE_PHOTO_BUCKET } from "@/lib/profile-photos";
+export { PROFILE_PHOTO_BUCKET } from "@/lib/profile-photos";
 export const PHOTO_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function photoActor(request: Request) {

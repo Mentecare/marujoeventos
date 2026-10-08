@@ -1,29 +1,447 @@
 "use client";
-import {useEffect,useState} from 'react';
-import {commercialApi,workflowApi,saleLineTotal,type CommercialOrganization,type CommercialWorkspace as Workspace,type SaleQuoteDTO,type ProviderSummary,type ProviderPresentation,type BuyerWorkStatus} from '@/lib/commercial';
-import {supabase} from '@/lib/supabase-browser';
-import {ProfessionalPhotos} from './profile-photos';
-import {money,calendarDate,useMutation} from './workflow-ui';
-import {revenueDateKey} from '@/lib/finance';
-import {QuotePdf} from './quote-pdf';
-const empty:Workspace={requests:[],quotes:[],contracts:[],receipts:[]};
-export function CommercialWorkspace({organization,identityComplete,onContracts,clients=[]}:{clients?:{id:string;trade_name:string}[];organization:CommercialOrganization;identityComplete:boolean;onContracts?:(contracts:Workspace['contracts'])=>void}){
- const api=commercialApi(supabase),work=workflowApi(supabase);const [data,setData]=useState(empty),[providers,setProviders]=useState<ProviderSummary[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[attempt,setAttempt]=useState(0),[edit,setEdit]=useState<SaleQuoteDTO|null>(null),[requestId,setRequestId]=useState(''),[presentation,setPresentation]=useState<ProviderPresentation|null>(null),[buyerWork,setBuyerWork]=useState<BuyerWorkStatus|null>(null);
- async function refresh(){const next=await api.workspace(organization.id);setData(next);onContracts?.(next.contracts)}const m=useMutation(refresh);const buyer=organization.market_role==='buyer',operate=identityComplete&&organization.can_finance;
- useEffect(()=>{let active=true;setLoading(true);setError('');setData(empty);setEdit(null);setBuyerWork(null);setPresentation(null);Promise.all([api.workspace(organization.id),buyer?api.providers():Promise.resolve([])]).then(([next,p])=>{if(active){setData(next);setProviders(p);onContracts?.(next.contracts)}}).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[organization.id,attempt]);
- async function viewProvider(id:string){setError('');setPresentation(null);try{setPresentation(await work.providerPresentation(id))}catch(e){setError(e instanceof Error?e.message:String(e))}}
- return <section className="commercialWorkspace"><section className="panel"><div className="sectionHead"><h2>{buyer?'Contratar fornecedores':'Solicitações e orçamentos'}</h2><button className="btn secondary" disabled={loading||m.busy} onClick={()=>setAttempt(n=>n+1)}>Atualizar comercial</button></div>{loading&&<p role="status">Carregando comercial…</p>}{error&&<p className="error" role="alert">{error}</p>}{m.feedback}{!identityComplete&&<p className="notice">Complete CPF ou CNPJ em Meu perfil → Identificação e atividade comercial para novas operações.</p>}
- {buyer&&<><h3>Fornecedores disponíveis</h3>{providers.length?providers.map(p=><article className="operationRow" key={p.id}><div><strong>{p.display_name}</strong><span>{p.specialties.join(' · ')||'Sem especialidades informadas'}</span></div>{data.requests.some(r=>r.provider_organization_id===p.id)||data.contracts.some(c=>c.provider_organization_id===p.id)?<button className="btn secondary" onClick={()=>viewProvider(p.id)}>Ver perfil e portfólio</button>:<span className="subtle">Perfil e portfólio disponíveis após solicitação.</span>}</article>):!loading&&<p className="empty">Nenhum fornecedor disponível.</p>}<form className="form" onSubmit={async e=>{e.preventDefault();const form=e.currentTarget,f=new FormData(form);if(await m.run(()=>api.request(organization.id,String(f.get('provider')),String(f.get('title')),String(f.get('description')),String(f.get('date'))||null,String(f.get('venue'))||null),'Solicitação enviada.'))form.reset()}}><fieldset className="eventCreationFields" disabled={!operate||m.busy}><h3>Solicitar orçamento</h3><label>Fornecedor<select className="select" name="provider" required><option value="">Selecione</option>{providers.map(p=><option key={p.id} value={p.id}>{p.display_name}</option>)}</select></label><label>Título<input className="input" name="title" required maxLength={150}/></label><label>Necessidades<textarea className="textarea" name="description" required maxLength={2000}/></label><label>Data<input className="input" name="date" type="date"/></label><label>Local<input className="input" name="venue"/></label><button className="btn">Enviar solicitação</button></fieldset></form></>}
- <h3>Solicitações</h3>{data.requests.map(r=><article className="operationRow" key={r.id}><div><strong>{r.title}</strong><span>{r.description} · {r.status}</span></div>{!buyer&&operate&&r.status!=='contracted'&&<button className="btn secondary" disabled={m.busy} onClick={()=>{setEdit(null);setRequestId(r.id)}}>Preparar orçamento</button>}</article>)}{!data.requests.length&&!loading&&<p className="empty">Nenhuma solicitação.</p>}
- </section>
- {!buyer&&operate&&<QuoteEditor key={edit?`${edit.id}:${edit.revision}`:requestId||'new'} organizationId={organization.id} requestId={requestId} requests={data.requests} quote={edit} clients={clients} busy={m.busy} save={async(q,items)=>m.run(async()=>{const id=await api.saveQuote(q,items);setEdit(await api.quote(id))},'Rascunho salvo.')} />}
- <section className="panel"><h2>Orçamentos e propostas</h2>{data.quotes.map(q=><article className="functionDraft" key={q.id}><h3>{q.title}</h3><p>{q.issuer.display_name} → {q.client.display_name} · {q.status} · revisão {q.revision}</p><p>Validade: {q.valid_until?calendarDate(q.valid_until):'Não informada'} · {q.payment_terms}</p><div className="simpleList">{q.items.map(i=><article key={i.id}><strong>{i.label}</strong><span>{i.quantity} × {i.contract_days} dias{q.show_unit_prices?` × ${money(i.client_unit_price)}`:''} = {money(i.line_total)}</span></article>)}</div><strong>Total de venda: {money(q.client_total)}</strong><div className="actions">{!buyer&&q.status==='draft'&&operate&&<><button className="btn secondary" disabled={m.busy} onClick={()=>{setEdit(q);setRequestId(q.request_id||'')}}>Editar rascunho</button><button className="btn" disabled={m.busy} onClick={()=>m.run(()=>api.submitQuote(q.id,q.revision),'Orçamento enviado.')}>Enviar orçamento</button></>}{buyer&&q.status==='sent'&&operate&&<button className="btn" disabled={m.busy} onClick={()=>m.run(()=>api.acceptQuote(q.id,q.revision),'Contrato aceito.')}>Aceitar orçamento</button>}</div>{!buyer&&q.status==='sent'&&!q.request_id&&operate&&<form className="form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void m.run(()=>api.acceptQuote(q.id,q.revision,String(f.get('evidence'))),'Aceite externo registrado.')}}><label>Evidência do aceite externo<input className="input" name="evidence" required maxLength={2000}/></label><button className="btn secondary" disabled={m.busy}>Registrar aceite externo</button></form>}<QuotePdf quote={q}/></article>)}{!data.quotes.length&&!loading&&<p className="empty">Nenhum orçamento disponível.</p>}</section>
- <section className="panel"><h2>Contratos, cobranças e recibos</h2>{data.contracts.map(c=><article className="functionDraft" id={"contract-"+c.id} tabIndex={-1} key={c.id}><h3>{c.quote_snapshot.title}</h3><p>Contratado: {money(c.sale_total)} · Recebido: {money(c.received_total)} · A receber: {money(c.receivable_total)}</p>{data.receipts.filter(r=>r.contract_id===c.id).map(r=><p key={r.id}>Recibo: {money(r.amount)} · {r.method} · {calendarDate(r.received_on)}</p>)}{buyer?<button className="btn secondary" disabled={m.busy} onClick={async()=>{setError('');try{setBuyerWork(await work.buyerWork(c.id))}catch(e){setError(e instanceof Error?e.message:String(e))}}}>Acompanhar trabalho</button>:organization.can_finance&&identityComplete&&<form className="form" onSubmit={async e=>{e.preventDefault();const form=e.currentTarget,f=new FormData(form);const key=form.dataset.receiptKey||(form.dataset.receiptKey=crypto.randomUUID());if(await m.run(()=>api.recordReceipt(c.id,Number(f.get('amount')),String(f.get('method')) as 'pix',String(f.get('date')),key),'Recebimento registrado.')){delete form.dataset.receiptKey;form.reset()}}}><label>Valor recebido<input className="input" name="amount" type="number" min="0.01" step="0.01" required/></label><label>Método<select className="select" name="method"><option value="pix">Pix</option><option value="transfer">Transferência</option><option value="cash">Dinheiro</option><option value="other">Outro</option></select></label><label>Data do recebimento<input className="input" name="date" type="date" max={revenueDateKey(new Date())} defaultValue={revenueDateKey(new Date())} required/></label><button className="btn" disabled={m.busy}>Registrar recebimento</button></form>}</article>)}{!data.contracts.length&&!loading&&<p className="empty">Nenhum contrato aceito.</p>}</section>
- {buyerWork&&<section className="panel"><h2>Acompanhamento do contrato</h2><p>{buyerWork.work?`${buyerWork.work.name} · ${buyerWork.work.status} · ${buyerWork.work.venue}`:'O fornecedor ainda não vinculou um trabalho.'}</p>{buyerWork.work?.status==='completed'&&<>{buyerWork.work.completion_confirmed?<form className="form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void m.run(()=>work.rateProvider(buyerWork.contract_id,Number(f.get('stars')),String(f.get('comment'))||null),'Avaliação registrada.')}}><label>Estrelas<select className="select" name="stars">{[5,4,3,2,1].map(n=><option key={n}>{n}</option>)}</select></label><label>Comentário<input className="input" name="comment" maxLength={1000}/></label><button className="btn" disabled={m.busy}>Avaliar fornecedor</button></form>:<button className="btn" disabled={m.busy} onClick={async()=>{if(await m.run(()=>work.confirmContractCompletion(buyerWork.contract_id),'Conclusão confirmada.'))setBuyerWork(await work.buyerWork(buyerWork.contract_id))}}>Confirmar trabalho concluído</button>}</>}</section>}
- {presentation&&<section className="panel"><div className="sectionHead"><h2>{presentation.display_name}</h2><button className="btn ghost" onClick={()=>setPresentation(null)}>Fechar perfil</button></div><p>{presentation.bio||'Sem apresentação'} · {presentation.specialties.join(' · ')}</p><p>{presentation.average_stars==null?'Sem avaliações':`★ ${presentation.average_stars}/5`} · {presentation.review_count} avaliações · {presentation.job_count} trabalhos</p><ProfessionalPhotos organizationId={presentation.id} name={presentation.display_name}/></section>}
- </section>;
+import { useEffect, useState } from 'react';
+import { commercialApi, workflowApi, saleLineTotal, type CommercialOrganization, type CommercialWorkspace as Workspace, type SaleQuoteDTO, type ProviderSummary, type ProviderPresentation, type BuyerWorkStatus } from '@/lib/commercial';
+import { supabase } from '@/lib/supabase-browser';
+import { ProfessionalPhotos } from './profile-photos';
+import { money, calendarDate, useMutation } from './workflow-ui';
+import { revenueDateKey } from '@/lib/finance';
+import { QuotePdf } from './quote-pdf';
+const empty: Workspace = { requests: [], quotes: [], contracts: [], receipts: [] };
+export function CommercialWorkspace({ organization, identityComplete, onContracts, clients = [] }: {
+  clients?: {
+    id: string;
+    trade_name: string;
+  }[];
+  organization: CommercialOrganization;
+  identityComplete: boolean;
+  onContracts?: (contracts: Workspace['contracts']) => void;
+}) {
+  const api = commercialApi(supabase), work = workflowApi(supabase);
+  const [data, setData] = useState(empty), [providers, setProviders] = useState<ProviderSummary[]>([]), [error, setError] = useState(''), [loading, setLoading] = useState(true), [attempt, setAttempt] = useState(0), [edit, setEdit] = useState<SaleQuoteDTO | null>(null), [requestId, setRequestId] = useState(''), [presentation, setPresentation] = useState<ProviderPresentation | null>(null), [buyerWork, setBuyerWork] = useState<BuyerWorkStatus | null>(null);
+  async function refresh() { const next = await api.workspace(organization.id); setData(next); onContracts?.(next.contracts); }
+  const m = useMutation(refresh);
+  const buyer = organization.market_role === 'buyer', operate = identityComplete && organization.can_finance;
+  useEffect(() => {
+    let active = true; setLoading(true); setError(''); setData(empty); setEdit(null); setBuyerWork(null); setPresentation(null); Promise.all([api.workspace(organization.id), buyer ? api.providers() : Promise.resolve([])]).then(([next, p]) => {
+      if (active) {
+        setData(next);
+        setProviders(p);
+        onContracts?.(next.contracts);
+      }
+    }).catch(e => {
+      if (active)
+        setError(e.message);
+    }).finally(() => {
+      if (active)
+        setLoading(false);
+    }); return () => { active = false; };
+  }, [organization.id, attempt]);
+  async function viewProvider(id: string) {
+    setError(''); setPresentation(null); try {
+      setPresentation(await work.providerPresentation(id));
+    }
+      catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+  }
+  return <section className="commercialWorkspace">
+    <section className="panel">
+      <div className="sectionHead">
+        <h2>{buyer ? 'Contratar fornecedores' : 'Solicitações e orçamentos'}
+        </h2>
+        <button
+          className="btn secondary"
+          disabled={loading || m.busy}
+          onClick={() => setAttempt(n => n + 1)}>Atualizar comercial
+        </button>
+      </div>{loading &&
+        <p role="status">Carregando comercial…
+        </p>}{error &&
+          <p className="error" role="alert">{error}
+          </p>}{m.feedback}{!identityComplete &&
+            <p className="notice">Complete CPF ou CNPJ em Meu perfil → Identificação e atividade comercial para novas operações.
+            </p>}
+      {buyer &&
+        <>
+          <h3>Fornecedores disponíveis
+          </h3>{providers.length ? providers.map(p =>
+            <article className="operationRow" key={p.id}>
+              <div>
+                <strong>{p.display_name}
+                </strong>
+                <span>{p.specialties.join(' · ') || 'Sem especialidades informadas'}
+                </span>
+              </div>{data.requests.some(r => r.provider_organization_id === p.id) || data.contracts.some(c => c.provider_organization_id === p.id) ?
+                <button className="btn secondary" onClick={() => viewProvider(p.id)}>Ver perfil e portfólio
+                </button> :
+                <span className="subtle">Perfil e portfólio disponíveis após solicitação.
+                </span>}
+            </article>) : !loading &&
+          <p className="empty">Nenhum fornecedor disponível.
+          </p>}
+          <form className="form" onSubmit={async (e) => {
+            e.preventDefault(); const form = e.currentTarget, f = new FormData(form); if (await m.run(() => api.request(organization.id, String(f.get('provider')), String(f.get('title')), String(f.get('description')), String(f.get('date')) || null, String(f.get('venue')) || null), 'Solicitação enviada.'))
+              form.reset();
+          }}>
+            <fieldset className="eventCreationFields" disabled={!operate || m.busy}>
+              <h3>Solicitar orçamento
+              </h3>
+              <label>Fornecedor
+                <select
+                  className="select"
+                  name="provider"
+                  required>
+                  <option value="">Selecione
+                  </option>{providers.map(p =>
+                    <option key={p.id} value={p.id}>{p.display_name}
+                    </option>)}
+                </select>
+              </label>
+              <label>Título
+                <input
+                  className="input"
+                  name="title"
+                  required
+                  maxLength={150} />
+              </label>
+              <label>Necessidades
+                <textarea
+                  className="textarea"
+                  name="description"
+                  required
+                  maxLength={2000} />
+              </label>
+              <label>Data
+                <input
+                  className="input"
+                  name="date"
+                  type="date" />
+              </label>
+              <label>Local
+                <input className="input" name="venue" />
+              </label>
+              <button className="btn">Enviar solicitação
+              </button>
+            </fieldset>
+          </form></>}
+      <h3>Solicitações
+      </h3>{data.requests.map(r =>
+        <article className="operationRow" key={r.id}>
+          <div>
+            <strong>{r.title}
+            </strong>
+            <span>{r.description} · {r.status}
+            </span>
+          </div>{!buyer && operate && r.status !== 'contracted' &&
+            <button
+              className="btn secondary"
+              disabled={m.busy}
+              onClick={() => { setEdit(null); setRequestId(r.id); }}>Preparar orçamento
+            </button>}
+        </article>)}{!data.requests.length && !loading &&
+          <p className="empty">Nenhuma solicitação.
+          </p>}
+    </section>
+    {!buyer && operate &&
+      <QuoteEditor
+        key={edit ? `${edit.id}:${edit.revision}` : requestId || 'new'}
+        organizationId={organization.id}
+        requestId={requestId}
+        requests={data.requests}
+        quote={edit}
+        clients={clients}
+        busy={m.busy}
+        save={async (q, items) => m.run(async () => { const id = await api.saveQuote(q, items); setEdit(await api.quote(id)); }, 'Rascunho salvo.')} />}
+    <section className="panel">
+      <h2>Orçamentos e propostas
+      </h2>{data.quotes.map(q =>
+        <article className="functionDraft" key={q.id}>
+          <h3>{q.title}
+          </h3>
+          <p>{q.issuer.display_name} → {q.client.display_name} · {q.status} · revisão {q.revision}
+          </p>
+          <p>Validade: {q.valid_until ? calendarDate(q.valid_until) : 'Não informada'} · {q.payment_terms}
+          </p>
+          <div className="simpleList">{q.items.map(i =>
+            <article key={i.id}>
+              <strong>{i.label}
+              </strong>
+              <span>{i.quantity} × {i.contract_days} dias{q.show_unit_prices ? ` × ${money(i.client_unit_price)}` : ''} = {money(i.line_total)}
+              </span>
+            </article>)}
+          </div>
+          <strong>Total de venda: {money(q.client_total)}
+          </strong>
+          <div className="actions">{!buyer && q.status === 'draft' && operate &&
+            <>
+              <button
+                className="btn secondary"
+                disabled={m.busy}
+                onClick={() => { setEdit(q); setRequestId(q.request_id || ''); }}>Editar rascunho
+              </button>
+              <button
+                className="btn"
+                disabled={m.busy}
+                onClick={async () => {
+                  if (await m.run(() => api.submitQuote(q.id, q.revision), 'Orçamento enviado.')) {
+                    if (edit?.id === q.id) {
+                      setEdit(null);
+                      setRequestId('');
+                    }
+                  }
+                }}>Enviar orçamento
+              </button></>}{buyer && q.status === 'sent' && operate &&
+                <button
+                  className="btn"
+                  disabled={m.busy}
+                  onClick={() => m.run(() => api.acceptQuote(q.id, q.revision), 'Contrato aceito.')}>Aceitar orçamento
+                </button>}
+          </div>{!buyer && q.status === 'sent' && !q.request_id && operate &&
+            <form className="form" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void m.run(() => api.acceptQuote(q.id, q.revision, String(f.get('evidence'))), 'Aceite externo registrado.'); }}>
+              <label>Evidência do aceite externo
+                <input
+                  className="input"
+                  name="evidence"
+                  required
+                  maxLength={2000} />
+              </label>
+              <button className="btn secondary" disabled={m.busy}>Registrar aceite externo
+              </button>
+            </form>}
+          <QuotePdf quote={q} />
+        </article>)}{!data.quotes.length && !loading &&
+          <p className="empty">Nenhum orçamento disponível.
+          </p>}
+    </section>
+    <section className="panel">
+      <h2>Contratos, cobranças e recibos
+      </h2>{data.contracts.map(c =>
+        <article
+          className="functionDraft"
+          id={"contract-" + c.id}
+          tabIndex={-1}
+          key={c.id}>
+          <h3>{c.quote_snapshot.title}
+          </h3>
+          <p>Contratado: {money(c.sale_total)} · Recebido: {money(c.received_total)} · A receber: {money(c.receivable_total)}
+          </p>{data.receipts.filter(r => r.contract_id === c.id).map(r =>
+            <p key={r.id}>Recibo: {money(r.amount)} · {r.method} · {calendarDate(r.received_on)}
+            </p>)}{buyer ?
+              <button
+                className="btn secondary"
+                disabled={m.busy}
+                onClick={async () => {
+                  setError(''); try {
+                    setBuyerWork(await work.buyerWork(c.id));
+                  }
+                    catch (e) {
+                      setError(e instanceof Error ? e.message : String(e));
+                    }
+                }}>Acompanhar trabalho
+              </button> : organization.can_finance && identityComplete &&
+              <form className="form" onSubmit={async (e) => {
+                e.preventDefault(); const form = e.currentTarget, f = new FormData(form); const key = form.dataset.receiptKey || (form.dataset.receiptKey = crypto.randomUUID()); if (await m.run(() => api.recordReceipt(c.id, Number(f.get('amount')), String(f.get('method')) as 'pix', String(f.get('date')), key), 'Recebimento registrado.')) {
+                  delete form.dataset.receiptKey;
+                  form.reset();
+                }
+              }}>
+                <label>Valor recebido
+                  <input
+                    className="input"
+                    name="amount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required />
+                </label>
+                <label>Método
+                  <select className="select" name="method">
+                    <option value="pix">Pix
+                    </option>
+                    <option value="transfer">Transferência
+                    </option>
+                    <option value="cash">Dinheiro
+                    </option>
+                    <option value="other">Outro
+                    </option>
+                  </select>
+                </label>
+                <label>Data do recebimento
+                  <input
+                    className="input"
+                    name="date"
+                    type="date"
+                    max={revenueDateKey(new Date())}
+                    defaultValue={revenueDateKey(new Date())}
+                    required />
+                </label>
+                <button className="btn" disabled={m.busy}>Registrar recebimento
+                </button>
+              </form>}
+        </article>)}{!data.contracts.length && !loading &&
+          <p className="empty">Nenhum contrato aceito.
+          </p>}
+    </section>
+    {buyerWork &&
+      <section className="panel">
+        <h2>Acompanhamento do contrato
+        </h2>
+        <p>{buyerWork.work ? `${buyerWork.work.name} · ${buyerWork.work.status} · ${buyerWork.work.venue}` : 'O fornecedor ainda não vinculou um trabalho.'}
+        </p>{buyerWork.work?.status === 'completed' && buyerWork.work.can_confirm && !buyerWork.work.reviewed &&
+          <>{buyerWork.work.completion_confirmed ?
+            <form className="form" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void m.run(async () => { await work.rateProvider(buyerWork.contract_id, Number(f.get('stars')), String(f.get('comment')) || null); setBuyerWork(await work.buyerWork(buyerWork.contract_id)); }, 'Avaliação registrada.'); }}>
+              <label>Estrelas
+                <select className="select" name="stars">{[5, 4, 3, 2, 1].map(n =>
+                  <option key={n}>{n}
+                  </option>)}
+                </select>
+              </label>
+              <label>Comentário
+                <input
+                  className="input"
+                  name="comment"
+                  maxLength={1000} />
+              </label>
+              <button className="btn" disabled={m.busy}>Avaliar fornecedor
+              </button>
+            </form> :
+            <button
+              className="btn"
+              disabled={m.busy}
+              onClick={async () => {
+                if (await m.run(() => work.confirmContractCompletion(buyerWork.contract_id), 'Conclusão confirmada.'))
+                  setBuyerWork(await work.buyerWork(buyerWork.contract_id));
+              }}>Confirmar trabalho concluído
+            </button>}</>}
+      </section>}
+    {presentation &&
+      <section className="panel">
+        <div className="sectionHead">
+          <h2>{presentation.display_name}
+          </h2>
+          <button className="btn ghost" onClick={() => setPresentation(null)}>Fechar perfil
+          </button>
+        </div>
+        <p>{presentation.bio || 'Sem apresentação'} · {presentation.specialties.join(' · ')}
+        </p>
+        <p>{presentation.average_stars == null ? 'Sem avaliações' : `★ ${presentation.average_stars}/5`} · {presentation.review_count} avaliações · {presentation.job_count} trabalhos
+        </p>
+        <ProfessionalPhotos organizationId={presentation.id} name={presentation.display_name} />
+      </section>}
+  </section>;
 }
-function QuoteEditor({organizationId,requestId,requests,quote,busy,save,clients}:{clients:{id:string;trade_name:string}[];organizationId:string;requestId:string;requests:Workspace['requests'];quote:SaleQuoteDTO|null;busy:boolean;save:(q:Parameters<ReturnType<typeof commercialApi>['saveQuote']>[0],items:Parameters<ReturnType<typeof commercialApi>['saveQuote']>[1])=>Promise<boolean>}){
- const [items,setItems]=useState(quote?.items.map(i=>({label:i.label,quantity:i.quantity,contract_days:i.contract_days,planned_hours:i.planned_hours,client_unit_price:i.client_unit_price}))||[{label:'',quantity:1,contract_days:1,planned_hours:null as number|null,client_unit_price:0}]);const [error,setError]=useState('');let total:number|null=null;try{total=items.reduce((sum,i)=>sum+saleLineTotal(i),0)}catch{}
- return <form className="panel form" onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget);setError('');try{items.forEach(saleLineTotal);await save({organization_id:organizationId,...(quote?{id:quote.id,expected_revision:quote.revision}:{}),request_id:String(f.get('request'))||null,client_id:String(f.get('client'))||null,title:String(f.get('title')),event_date:quote?.event_date??null,venue:quote?.venue??null,valid_until:String(f.get('validity')),payment_terms:String(f.get('terms')),show_unit_prices:f.get('prices')==='on'},items)}catch(e){setError(e instanceof Error?e.message:String(e))}}}><h2>{quote?'Editar rascunho':'Novo orçamento de venda'}</h2><fieldset className="eventCreationFields" disabled={busy}><label>Solicitação<select name="request" className="select" defaultValue={quote?.request_id||requestId}><option value="">Cliente externo</option>{requests.map(r=><option value={r.id} key={r.id}>{r.title}</option>)}</select></label><label>Cliente externo (se não houver solicitação)<select className="select" name="client"><option value="">Selecione</option>{clients.map(c=><option key={c.id} value={c.id}>{c.trade_name}</option>)}</select></label><label>Título<input className="input" name="title" required defaultValue={quote?.title}/></label><label>Validade<input className="input" name="validity" type="date" min={revenueDateKey(new Date())} defaultValue={quote?.valid_until||revenueDateKey(new Date())} required/></label><label>Condições de pagamento<textarea className="textarea" name="terms" required defaultValue={quote?.payment_terms||''}/></label>{items.map((item,index)=><fieldset className="functionDraft form" key={index}><legend>Item de venda {index+1}</legend>{(['label','quantity','contract_days','client_unit_price'] as const).map(field=><label key={field}>{({label:'Serviço',quantity:'Quantidade',contract_days:'Dias',client_unit_price:'Preço unitário de venda (R$)'})[field]}<input className="input" type={field==='label'?'text':'number'} min={field==='client_unit_price'?0:1} step={field==='client_unit_price'?'0.01':'1'} required value={item[field]} onChange={e=>setItems(list=>list.map((old,i)=>i===index?{...old,[field]:field==='label'?e.target.value:Number(e.target.value)}:old))}/></label>)}<button className="btn ghost" type="button" disabled={items.length===1} onClick={()=>setItems(list=>list.filter((_,i)=>i!==index))}>Remover item de venda</button></fieldset>)}<button className="btn secondary" type="button" onClick={()=>setItems(list=>[...list,{label:'',quantity:1,contract_days:1,planned_hours:null as number|null,client_unit_price:0}])}>Adicionar item de venda</button><label className="check"><input name="prices" type="checkbox" defaultChecked={quote?.show_unit_prices??true}/>Mostrar preços unitários ao cliente</label><strong>Total: {money(total)}</strong><p className="subtle">Preços de venda independentes da remuneração da equipe.</p>{error&&<p className="error" role="alert">{error}</p>}<button className="btn">Salvar rascunho</button></fieldset></form>;
+function QuoteEditor({ organizationId, requestId, requests, quote, busy, save, clients }: {
+  clients: {
+    id: string;
+    trade_name: string;
+  }[];
+  organizationId: string;
+  requestId: string;
+  requests: Workspace['requests'];
+  quote: SaleQuoteDTO | null;
+  busy: boolean;
+  save: (q: Parameters<ReturnType<typeof commercialApi>['saveQuote']>[0], items: Parameters<ReturnType<typeof commercialApi>['saveQuote']>[1]) => Promise<boolean>;
+}) {
+  const [items, setItems] = useState(quote?.items.map(i => ({ label: i.label, quantity: i.quantity, contract_days: i.contract_days, planned_hours: i.planned_hours, client_unit_price: i.client_unit_price })) || [{ label: '', quantity: 1, contract_days: 1, planned_hours: null as number | null, client_unit_price: 0 }]);
+  const [error, setError] = useState('');
+  let total: number | null = null;
+  try {
+    total = items.reduce((sum, i) => sum + saleLineTotal(i), 0);
+  }
+  catch { }
+  return <form className="panel form" onSubmit={async (e) => {
+    e.preventDefault(); const f = new FormData(e.currentTarget); setError(''); try {
+      items.forEach(saleLineTotal);
+      await save({ organization_id: organizationId, ...(quote ? { id: quote.id, expected_revision: quote.revision } : {}), request_id: String(f.get('request')) || null, client_id: String(f.get('client')) || null, title: String(f.get('title')), event_date: quote?.event_date ?? null, venue: quote?.venue ?? null, valid_until: String(f.get('validity')), payment_terms: String(f.get('terms')), show_unit_prices: f.get('prices') === 'on' }, items);
+    }
+      catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+  }}>
+    <h2>{quote ? 'Editar rascunho' : 'Novo orçamento de venda'}
+    </h2>
+    <fieldset className="eventCreationFields" disabled={busy}>
+      <label>Solicitação
+        <select
+          name="request"
+          className="select"
+          defaultValue={quote?.request_id || requestId}>
+          <option value="">Cliente externo
+          </option>{requests.map(r =>
+            <option value={r.id} key={r.id}>{r.title}
+            </option>)}
+        </select>
+      </label>
+      <label>Cliente externo (se não houver solicitação)
+        <select className="select" name="client">
+          <option value="">Selecione
+          </option>{clients.map(c =>
+            <option key={c.id} value={c.id}>{c.trade_name}
+            </option>)}
+        </select>
+      </label>
+      <label>Título
+        <input
+          className="input"
+          name="title"
+          required
+          defaultValue={quote?.title} />
+      </label>
+      <label>Validade
+        <input
+          className="input"
+          name="validity"
+          type="date"
+          min={revenueDateKey(new Date())}
+          defaultValue={quote?.valid_until || revenueDateKey(new Date())}
+          required />
+      </label>
+      <label>Condições de pagamento
+        <textarea
+          className="textarea"
+          name="terms"
+          required
+          defaultValue={quote?.payment_terms || ''} />
+      </label>{items.map((item, index) =>
+        <fieldset className="functionDraft form" key={index}>
+          <legend>Item de venda {index + 1}
+          </legend>{(['label', 'quantity', 'contract_days', 'client_unit_price'] as const).map(field =>
+            <label key={field}>{({ label: 'Serviço', quantity: 'Quantidade', contract_days: 'Dias', client_unit_price: 'Preço unitário de venda (R$)' })[field]}
+              <input
+                className="input"
+                type={field === 'label' ? 'text' : 'number'}
+                min={field === 'client_unit_price' ? 0 : 1}
+                step={field === 'client_unit_price' ? '0.01' : '1'}
+                required
+                value={item[field]}
+                onChange={e => setItems(list => list.map((old, i) => i === index ? { ...old, [field]: field === 'label' ? e.target.value : Number(e.target.value) } : old))} />
+            </label>)}
+          <button
+            className="btn ghost"
+            type="button"
+            disabled={items.length === 1}
+            onClick={() => setItems(list => list.filter((_, i) => i !== index))}>Remover item de venda
+          </button>
+        </fieldset>)}
+      <button
+        className="btn secondary"
+        type="button"
+        onClick={() => setItems(list => [...list, { label: '', quantity: 1, contract_days: 1, planned_hours: null as number | null, client_unit_price: 0 }])}>Adicionar item de venda
+      </button>
+      <label className="check">
+        <input
+          name="prices"
+          type="checkbox"
+          defaultChecked={quote?.show_unit_prices ?? true} />Mostrar preços unitários ao cliente
+      </label>
+      <strong>Total: {money(total)}
+      </strong>
+      <p className="subtle">Preços de venda independentes da remuneração da equipe.
+      </p>{error &&
+        <p className="error" role="alert">{error}
+        </p>}
+      <button className="btn">Salvar rascunho
+      </button>
+    </fieldset>
+  </form>;
 }

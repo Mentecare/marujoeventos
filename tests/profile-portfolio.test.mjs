@@ -11,7 +11,7 @@ function load(relative,dependencies) {
   new Function('require','module','exports',compiled)(id=>dependencies[id]??require(id),module,module.exports);
   return module.exports;
 }
-const server=load('../lib/profile-photo-server.ts',{'@/lib/supabase-server':{serviceSupabase(){throw new Error('unused');}},'@/lib/profile-photo-input':{PhotoError}});
+const server=load('../lib/profile-photo-server.ts',{'@/lib/supabase-server':{serviceSupabase(){throw new Error('unused');}},'@/lib/profile-photo-input':{PhotoError},'@/lib/profile-photos':await import('../lib/profile-photos.ts')});
 const organization='20000000-0000-4000-8000-000000000001';
 function fixture(error=null) {
   const calls=[],signed=[];

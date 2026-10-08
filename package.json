@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.2",
+    "fontkit": "2.0.4",
     "next": "15.5.27",
+    "pdfkit": "0.20.2",
     "react": "19.1.9",
     "react-dom": "19.1.9",
     "sharp": "0.35.5",
@@ -19,6 +21,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@types/pdfkit": "0.17.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/web-push": "3.6.4",

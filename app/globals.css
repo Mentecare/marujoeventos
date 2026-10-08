@@ -271,3 +271,6 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 /* Keep complete BRL values readable inside nested work-finance cards. */
 .workFinanceMetrics .metric strong { white-space:nowrap; }
 @media(max-width:600px) { .workFinanceMetrics { grid-template-columns:1fr; } .workFinanceMetrics .metric strong { font-size:clamp(1rem,4.8vw,1.45rem); white-space:nowrap; } }
+
+.accountMenu summary { position: relative; }
+.notificationBadge { position:absolute; right:-5px; top:-4px; min-width:18px; height:18px; padding:0 4px; border-radius:10px; background:#156341; color:white; font-size:11px; line-height:18px; text-align:center; }

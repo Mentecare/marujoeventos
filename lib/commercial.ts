@@ -92,6 +92,7 @@ export type WorkerWorkAssignment = {
   event_status: string; status: string; function_name: string; legacy_agreed_amount: number | null;
   offered_terms: AssignmentTerms | null; accepted_terms: AssignmentTerms | null; terms_history: AssignmentTerms[];
   payments: { id: string; amount: number; status: string; method: string | null; paid_at: string | null; term_id: string | null }[];
+  worker_name?: string; can_review?: boolean;
   completion_confirmed: boolean;
 };
 export type WorkOpportunity = { service_id: string; event_id: string; event_name: string; start_at: string; end_at: string | null; venue: string; function_name: string; specialty_id: string | null; vacancies: number; amount: number | null; contractor_name: string; requirements: string | null; event_status: string; compatible: boolean; contract_days: number | null; remuneration: (Omit<WorkRemuneration, 'benefits'> & { benefits: null }) | null };
@@ -99,11 +100,11 @@ export type ProviderPeople = { base: { freelancer_id: string; full_name: string;
 export type WorkerHistory = { freelancer_id: string; full_name: string; city: string | null; job_count: number; average_stars: number | null; review_count: number; punctuality: number | null; punctuality_count: number };
 export type ProviderHistory = { organization_id: string; display_name: string; job_count: number; average_stars: number | null; review_count: number };
 export type ProviderPresentation = { id: string; display_name: string; organization_type: string; bio: string | null; specialties: string[]; average_stars: number | null; review_count: number; job_count: number };
-export type BuyerWorkStatus = { contract_id: string; sale_total: number; quote: SaleQuoteDTO; received_total: number; work: { event_id: string; name: string; venue: string; start_at: string; end_at: string | null; status: string; completion_confirmed: boolean } | null };
+export type BuyerWorkStatus = { contract_id: string; sale_total: number; quote: SaleQuoteDTO; received_total: number; work: { event_id: string; name: string; venue: string; start_at: string; end_at: string | null; status: string; completion_confirmed: boolean; reviewed?: boolean; can_confirm?: boolean } | null };
 /** Minimal discovery projection; finance membership does not imply operations access. */
 export type WorkFinanceIndex = { event_id: string; event_name: string; organization_id: string | null };
 export type WorkFinance = {
-  event_id: string; sale_source: 'accepted_contract' | 'legacy_contracted_gross' | 'unknown';
+  event_id: string; sale_source: 'accepted_contract' | 'legacy_contracted_gross' | 'recorded_sale' | 'unknown';
   sale_contracted: number | null; sale_received: number | null; sale_receivable: number | null; sale_deductions: number;
   labor_contracted: number | null; labor_paid: number; labor_payable: number | null; unknown_labor_count: number;
   other_contracted: number | null; other_paid: number | null; other_payable: number | null; unknown_expense_count: number;
@@ -150,6 +151,10 @@ export function workflowApi(db: SupabaseClient) {
     eventRemunerations: (eventId: string) => rpc<WorkerWorkAssignment[]>(db, 'get_event_remunerations', { p_event_id: eventId }),
     financeIndex: () => rpc<WorkFinanceIndex[]>(db, 'get_work_finance_index'),
     finance: (eventId: string) => rpc<WorkFinance>(db, 'get_work_finance', { p_event_id: eventId }),
+    resolveExpense: (expenseId:string,amount:number,reference:string)=>rpc<string>(db,'resolve_work_expense',{p_expense_id:expenseId,p_amount:amount,p_evidence_reference:reference}),
+    recordSale: (eventId:string,amount:number,reference:string)=>rpc<string>(db,'record_work_sale',{p_event_id:eventId,p_amount:amount,p_evidence_reference:reference}),
+    linkSaleContract: (eventId:string,contractId:string)=>rpc<void>(db,'link_work_sale_contract',{p_event_id:eventId,p_contract_id:contractId}),
+    recordSaleReceipt: (eventId:string,amount:number,method:CustomerReceipt['method'],date:string,key:string)=>rpc<string>(db,'record_work_sale_receipt',{p_event_id:eventId,p_amount:amount,p_method:method,p_received_on:date,p_idempotency_key:key}),
     recordExpense: (eventId: string, label: string, amount: number | null, receiptReference: string | null = null) => rpc<string>(db, 'record_work_expense', { p_event_id: eventId, p_label: label, p_amount: amount, p_receipt_reference: receiptReference }),
     payExpense: (expenseId: string, amount: number, method: CustomerReceipt['method'], paidOn: string, idempotencyKey: string) => rpc<string>(db, 'record_work_expense_payment', { p_expense_id: expenseId, p_amount: amount, p_method: method, p_paid_on: paidOn, p_idempotency_key: idempotencyKey }),
     completeEvent: (eventId: string) => rpc<void>(db, 'complete_work_event', { p_event_id: eventId }),

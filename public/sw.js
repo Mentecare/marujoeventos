@@ -39,7 +39,7 @@ self.addEventListener("notificationclick", (event) => {
   const target = self.location.origin + link;
   event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
     const existing = clients.find((client) => client.url === target);
-    if (existing) return existing.focus();
+    if (existing) { await existing.navigate(target); return existing.focus(); }
     return self.clients.openWindow(target);
   }));
 });

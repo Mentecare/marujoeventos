@@ -125,7 +125,7 @@ select pg_temp.expect_denied(format('select public.accept_assignment_terms((sele
 select pg_temp.check_true(not exists(select 1 from public.get_event_opportunities() where service_id=current_setting('test.service')::uuid),'private job absent from marketplace');
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000005',true);
 select pg_temp.check_true((public.get_my_work_assignments()->0->'offered_terms'->>'total')::numeric=440 and jsonb_array_length(public.get_my_work_assignments())=2,'worker sees own initial conditions and legacy own work');
-select pg_temp.check_keys(public.get_my_work_assignments()->0,array['id','freelancer_id','event_service_id','event_id','event_name','venue','start_at','end_at','event_status','status','function_name','legacy_agreed_amount','offered_terms','accepted_terms','terms_history','payments','completion_confirmed'],'own worker DTO exact adapter keys');
+select pg_temp.check_keys(public.get_my_work_assignments()->0,array['id','worker_name','can_review','freelancer_id','event_service_id','event_id','event_name','venue','start_at','end_at','event_status','status','function_name','legacy_agreed_amount','offered_terms','accepted_terms','terms_history','payments','completion_confirmed'],'own worker DTO exact adapter keys');
 select pg_temp.check_keys(public.get_my_work_assignments()->0->'offered_terms',array['id','assignment_id','revision','basis','rate','contract_days','planned_hours','benefits','additions','deductions','total','created_at','accepted_at'],'term DTO always includes nullable conditions');
 select public.respond_to_assignment(current_setting('test.assignment')::uuid,'confirmed');
 select pg_temp.check_true((public.get_my_work_assignments()->0->'accepted_terms'->>'total')::numeric=440,'availability acceptance records remuneration acceptance');
@@ -229,7 +229,7 @@ select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002'
 select pg_temp.check_true(not exists(select 1 from jsonb_array_elements(public.get_work_opportunities()) x where x->'remuneration'<>'null'::jsonb),'buyer opportunity has no remuneration condition DTO');
 select pg_temp.check_true(public.get_buyer_work_status(current_setting('test.contract')::uuid)::text not like '%agreed_amount%' and public.get_buyer_work_status(current_setting('test.contract')::uuid)::text not like '%freelancer_unit_cost%','buyer sale+execution excludes all wage/cost values');
 select pg_temp.check_keys(public.get_buyer_work_status(current_setting('test.contract')::uuid),array['contract_id','sale_total','quote','received_total','work'],'buyer status exact sale-only root keys');
-select pg_temp.check_keys(public.get_buyer_work_status(current_setting('test.contract')::uuid)->'work',array['event_id','name','venue','start_at','end_at','status','completion_confirmed'],'buyer execution excludes worker identities');
+select pg_temp.check_keys(public.get_buyer_work_status(current_setting('test.contract')::uuid)->'work',array['event_id','name','venue','start_at','end_at','status','completion_confirmed','reviewed','can_confirm'],'buyer execution excludes worker identities');
 select pg_temp.check_true(not exists(select 1 from public.assignment_terms) and not exists(select 1 from public.workforce_payments) and not exists(select 1 from public.work_expenses),'buyer raw worker finance denied');
 select pg_temp.expect_error(format('select public.submit_provider_rating(%L,5,''Great'')',current_setting('test.contract')),'confirmed_completed_work_required');
 select public.confirm_contract_completion(current_setting('test.contract')::uuid);
@@ -266,6 +266,49 @@ select pg_temp.expect_error(format('select public.publish_work_function(%L,false
 select set_config('test.unknown_expense',public.record_work_expense(current_setting('test.full_event')::uuid,'Tax unresolved',null)::text,true);
 select pg_temp.check_true(public.get_work_finance(current_setting('test.full_event')::uuid)->'other_contracted'='null'::jsonb and public.get_work_finance(current_setting('test.full_event')::uuid)->'other_payable'='null'::jsonb and public.get_work_finance(current_setting('test.full_event')::uuid)->'estimated_result'='null'::jsonb and (public.get_work_finance(current_setting('test.full_event')::uuid)->>'unknown_expense_count')::integer=1,'unresolved expense keeps contracted/payable/result unknown');
 select pg_temp.expect_error(format('select public.record_work_expense_payment(%L,1,''pix'',(now() at time zone ''America/Sao_Paulo'')::date,''unknown-expense'')',current_setting('test.unknown_expense')),'expense_amount_unknown');
+-- Unknown evidence remains immutable, a single effective resolution becomes payable.
+select set_config('test.resolution',public.resolve_work_expense(current_setting('test.unknown_expense')::uuid,100,'Invoice tax 1')::text,true);
+select pg_temp.check_true(public.resolve_work_expense(current_setting('test.unknown_expense')::uuid,100,'Invoice tax 1')::text=current_setting('test.resolution'),'resolution retry is idempotent');
+select pg_temp.expect_error(format('select public.resolve_work_expense(%L,101,''Invoice tax 1'')',current_setting('test.unknown_expense')),'expense_already_resolved');
+select public.record_work_expense_payment(current_setting('test.unknown_expense')::uuid,100,'pix',(now() at time zone 'America/Sao_Paulo')::date,'resolved-payment');
+select public.record_work_expense_payment(current_setting('test.unknown_expense')::uuid,100,'pix',(now() at time zone 'America/Sao_Paulo')::date,'resolved-payment');
+select pg_temp.check_true((public.get_work_finance(current_setting('test.full_event')::uuid)->>'unknown_expense_count')::integer=0 and (public.get_work_finance(current_setting('test.full_event')::uuid)->>'other_contracted')::numeric=300 and (public.get_work_finance(current_setting('test.full_event')::uuid)->>'other_paid')::numeric=150 and (public.get_work_finance(current_setting('test.full_event')::uuid)->>'other_payable')::numeric=150,'effective expense counted/paid once');
+select pg_temp.expect_error(format('select public.record_work_expense_payment(%L,1,''pix'',(now() at time zone ''America/Sao_Paulo'')::date,''resolved-overpay'')',current_setting('test.unknown_expense')),'expense_exceeds_payable');
+-- Previously external work without contract can acquire an audited sale and real receipt.
+select set_config('test.sale',public.record_work_sale(current_setting('test.event')::uuid,1000,'External quote accepted 1')::text,true);
+select pg_temp.check_true(public.record_work_sale(current_setting('test.event')::uuid,1000,'External quote accepted 1')::text=current_setting('test.sale'),'sale retry stable');
+select pg_temp.expect_error(format('select public.record_work_sale(%L,1001,''External quote accepted 1'')',current_setting('test.event')),'sale_already_recorded');
+select set_config('test.receipt',public.record_work_sale_receipt(current_setting('test.event')::uuid,250,'pix',(now() at time zone 'America/Sao_Paulo')::date,'external-receipt-1')::text,true);
+select pg_temp.check_true(public.record_work_sale_receipt(current_setting('test.event')::uuid,250,'pix',(now() at time zone 'America/Sao_Paulo')::date,'external-receipt-1')::text=current_setting('test.receipt'),'receipt retry stable');
+select pg_temp.check_true((public.get_work_finance(current_setting('test.event')::uuid)->>'sale_contracted')::numeric=1000 and (public.get_work_finance(current_setting('test.event')::uuid)->>'sale_received')::numeric=250 and (public.get_work_finance(current_setting('test.event')::uuid)->>'sale_receivable')::numeric=750,'external sale lifecycle finance projection');
+select pg_temp.expect_error(format('select public.record_work_sale_receipt(%L,751,''pix'',(now() at time zone ''America/Sao_Paulo'')::date,''overpay-sale'')',current_setting('test.event')),'receipt_exceeds_receivable');
+-- Late contract linking must share the one-event invariant with original creation.
+select set_config('test.late_quote',public.save_sale_quote(jsonb_build_object('organization_id','20000000-0000-4000-8000-000000000001','client_id',current_setting('test.external_client'),'title','Later external quote','valid_until',(now() at time zone 'America/Sao_Paulo')::date),'[{"label":"Accepted external work","quantity":1,"contract_days":1,"client_unit_price":1000}]')::text,true);
+select public.submit_sale_quote(current_setting('test.late_quote')::uuid,1);
+select set_config('test.late_contract',public.accept_sale_quote(current_setting('test.late_quote')::uuid,1,'External accepted quotation evidence')::text,true);
+select set_config('test.late_event',(public.create_event_with_services(jsonb_build_object('organization_id','20000000-0000-4000-8000-000000000001','client_id',current_setting('test.external_client'),'name','Work awaiting quote','venue','Venue','start_at',now()+interval '1 day','end_at',now()+interval '2 days'),jsonb_build_array(jsonb_build_object('specialty_id',(select id from public.specialties where active order by id limit 1),'quantity_needed',1,'contract_days',1,'remuneration_basis','daily','remuneration_rate',100)))->'event'->>'id'),true);
+select public.link_work_sale_contract(current_setting('test.late_event')::uuid,current_setting('test.late_contract')::uuid);
+select public.link_work_sale_contract(current_setting('test.late_event')::uuid,current_setting('test.late_contract')::uuid);
+select public.record_work_sale_receipt(current_setting('test.late_event')::uuid,250,'pix',(now() at time zone 'America/Sao_Paulo')::date,'late-contract-receipt');
+select pg_temp.check_true((public.get_work_finance(current_setting('test.late_event')::uuid)->>'sale_source')='accepted_contract' and (public.get_work_finance(current_setting('test.late_event')::uuid)->>'sale_receivable')::numeric=750 and (select commercial_contract_id is null from public.events where id=current_setting('test.late_event')::uuid),'late link uses immutable contract/receipts without changing original event');
+select pg_temp.expect_error(format('insert into public.events(client_id,organization_id,created_by_profile_id,coordinator_id,commercial_contract_id,name,venue,start_at,end_at) values(%L,''20000000-0000-4000-8000-000000000001'',auth.uid(),auth.uid(),%L,''Duplicate contract work'',''Venue'',now(),now()+interval ''1 day'')',current_setting('test.external_client'),current_setting('test.late_contract')),'sale_already_linked');
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002',true);
+select pg_temp.check_true(public.get_buyer_work_status(current_setting('test.contract')::uuid)->'work'->>'event_id'=current_setting('test.full_event'),'original contract status remains unchanged');
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
+select pg_temp.expect_denied(format('select public.resolve_work_expense(%L,100,''forged tenant'')',current_setting('test.unknown_expense')));
+select pg_temp.expect_denied(format('select public.record_work_sale(%L,1000,''forged tenant'')',current_setting('test.event')));
+select pg_temp.expect_denied(format('select public.link_work_sale_contract(%L,%L)',current_setting('test.late_event'),current_setting('test.late_contract')));
+select pg_temp.expect_denied(format('insert into public.work_contract_links(event_id,contract_id,recorded_by) values(%L,%L,auth.uid())',current_setting('test.late_event'),current_setting('test.late_contract')));
+select pg_temp.expect_denied(format('select public.record_work_sale_receipt(%L,1,''pix'',current_date,''forged'')',current_setting('test.event')));
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000004',true);
+select pg_temp.expect_denied(format('select public.resolve_work_expense(%L,100,''operator'')',current_setting('test.unknown_expense')));
+select pg_temp.expect_denied(format('select public.record_work_sale(%L,1000,''operator'')',current_setting('test.event')));
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000005',true);
+select pg_temp.expect_denied(format('select public.resolve_work_expense(%L,100,''worker'')',current_setting('test.unknown_expense')));
+select pg_temp.check_true(not exists(select 1 from public.work_expense_resolutions) and not exists(select 1 from public.work_sale_entries) and not exists(select 1 from public.work_sale_receipts) and not exists(select 1 from public.work_contract_links),'worker raw finance evidence denied');
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
+select pg_temp.check_true((select amount is null and receipt_reference is null from public.work_expenses where id=current_setting('test.unknown_expense')::uuid),'original unknown expense unchanged');
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000005',true);
 select pg_temp.expect_error(format('update public.assignments set status=''cancelled'' where id=%L',current_setting('test.assignment')),'completed_assignment_immutable');
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);

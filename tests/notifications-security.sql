@@ -78,6 +78,7 @@ select public.publish_work_function(current_setting('test.service')::uuid,false)
 select set_config('test.assignment',public.create_event_assignment(current_setting('test.service')::uuid,'94100000-0000-4000-8000-000000000002')::text,true);
 select pg_temp.check_true(public.get_public_opportunity(current_setting('test.service')::uuid) is null,'private ID has no preview');
 reset role;
+select pg_temp.check_true((select count(*)=1 from public.notifications n join private.notification_events ev on ev.id=n.source_id where ev.assignment_id=current_setting('test.assignment')::uuid),'one initial invitation');
 select pg_temp.check_true(not exists(select 1 from public.notifications n join private.notification_events ev on ev.id=n.source_id where ev.kind='assignment' and n.profile_id<>'94000000-0000-4000-8000-000000000002'),'direct invite isolated to selected participant');
 select pg_temp.check_true(not exists(select 1 from private.notification_events ev where private.eventcore_notification_dto(ev.id)::text ~ 'SECRET|220|440|wage|margin|client|venue'),'notification DTO has no private payload');
 -- Closed work suppresses center and jobs; public previews never stale.
@@ -108,6 +109,23 @@ select set_config('test.email_batch',(select b->>'id' from jsonb_array_elements(
 select set_config('test.email_lease',(select b->>'lease_token' from jsonb_array_elements(current_setting('test.digest_claim')::jsonb) b where b->>'channel'='email'),true);
 select set_config('test.push_batch',(select b->>'id' from jsonb_array_elements(current_setting('test.digest_claim')::jsonb) b where b->>'channel'='push'),true);
 select set_config('test.push_lease',(select b->>'lease_token' from jsonb_array_elements(current_setting('test.digest_claim')::jsonb) b where b->>'channel'='push'),true);
+-- The original cached full/mixed payload must never regain authorization after another claim.
+savepoint lease_race;
+reset role;
+update public.event_services set visibility='private' where id=(select ev.service_id from private.notification_outbox q join public.notifications n on n.id=q.notification_id join private.notification_events ev on ev.id=n.source_id where q.batch_id=current_setting('test.email_batch')::uuid limit 1);
+set local role service_role;
+select pg_temp.check_true(not public.recheck_notification_batch(current_setting('test.email_batch')::uuid,current_setting('test.email_lease')::uuid),'mixed digest initially denied');
+select public.claim_notification_batches(20);
+select pg_temp.check_true(not public.recheck_notification_batch(current_setting('test.email_batch')::uuid,current_setting('test.email_lease')::uuid),'mixed cached digest stays denied after second worker claim');
+rollback to lease_race;
+reset role;
+update public.notification_preferences set email_enabled=false where profile_id='94000000-0000-4000-8000-000000000002';
+set local role service_role;
+select pg_temp.check_true(not public.recheck_notification_batch(current_setting('test.email_batch')::uuid,current_setting('test.email_lease')::uuid),'fully suppressed digest initially denied');
+select public.claim_notification_batches(20);
+select pg_temp.check_true(not public.recheck_notification_batch(current_setting('test.email_batch')::uuid,current_setting('test.email_lease')::uuid),'fully suppressed cached digest stays denied after second worker claim');
+rollback to lease_race;
+release savepoint lease_race;
 select pg_temp.expect_error(format('select public.finish_notification_batch(%L,%L,%L)',current_setting('test.push_batch'),current_setting('test.push_lease'),'acknowledged'),'unacknowledged_devices');
 select public.ack_notification_device(current_setting('test.push_batch')::uuid,current_setting('test.push_lease')::uuid,current_setting('test.device')::uuid);
 select public.finish_notification_batch(current_setting('test.push_batch')::uuid,current_setting('test.push_lease')::uuid,'acknowledged');

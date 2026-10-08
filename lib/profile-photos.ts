@@ -1,3 +1,4 @@
+export const PROFILE_PHOTO_BUCKET = "eventcore-profile-photos";
 export const PHOTO_MAX_BYTES = 3_000_000;
 export const PORTFOLIO_LIMIT = 10;
 export const PHOTO_ACCEPT = "image/jpeg,image/png,image/webp";
