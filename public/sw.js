@@ -1,4 +1,4 @@
-const CACHE = "eventcore-shell-notifications-v9";
+const CACHE = "eventcore-shell-notifications-v10";
 const SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -8,6 +8,18 @@ self.addEventListener("activate", (event) => {
 });
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
+  // Old clients posted directly to Auth and lost their full registration payload.
+  // New clients register via the EventCore server endpoint.
+  if (event.request.method === "POST" &&
+      url.origin === "https://mzwlchgxkuqptiqyznqd.supabase.co" &&
+      url.pathname === "/auth/v1/signup") {
+    event.respondWith(new Response(JSON.stringify({
+      code: "eventcore_registration_update_required",
+      message: "Atualize a página do EventCore antes de cadastrar. Os dados não foram enviados.",
+      msg: "Atualize a página do EventCore antes de cadastrar. Os dados não foram enviados."
+    }), {status:409,headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}}));
+    return;
+  }
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
   // Public previews can close or become private. APIs, documents and authenticated RSC
   // are never cached; old v8 entries are cleared on activation above.
