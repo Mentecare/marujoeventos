@@ -74,6 +74,7 @@ export default function Page(){
   const deepLinkHandled=useRef(false);
   const authFormRef=useRef<HTMLFormElement|null>(null);
   const [resendCooldown,setResendCooldown]=useState(0);
+  const [updateAvailable,setUpdateAvailable]=useState(false);
   useEffect(()=>{if(resendCooldown<=0)return;const timer=window.setTimeout(()=>setResendCooldown(current=>Math.max(0,current-1)),1000);return()=>window.clearTimeout(timer)},[resendCooldown]);
   const [deepTarget,setDeepTarget]=useState<string|null>(null);
   const [signup,setSignup]=useState(false);
@@ -130,7 +131,13 @@ export default function Page(){
   const [installPrompt,setInstallPrompt]=useState<any>(null);
 
   useEffect(()=>{
-    if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(()=>{});
+    if("serviceWorker" in navigator){
+      const wasControlled=!!navigator.serviceWorker.controller;
+      const onControllerChange=()=>{if(wasControlled)setUpdateAvailable(true)};
+      navigator.serviceWorker.addEventListener("controllerchange",onControllerChange);
+      navigator.serviceWorker.register("/sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
+      window.addEventListener("pagehide",()=>navigator.serviceWorker.removeEventListener("controllerchange",onControllerChange),{once:true});
+    }
     const handler=(e:any)=>{e.preventDefault();setInstallPrompt(e)};
     window.addEventListener("beforeinstallprompt",handler);
     const params=new URLSearchParams(location.search);
@@ -337,11 +344,12 @@ export default function Page(){
     <Brand/><p className="eyebrow">SUA OPERAÇÃO DE EVENTOS</p><h1>{signup?'Criar conta':'Entrar no EventCore'}</h1><p className="subtle">Conecte oportunidades, equipes e eventos.</p>
     <div className="switch"><button type="button" className={!signup?'active':''} onClick={()=>{setSignup(false);setError('')}}>Entrar</button><button type="button" className={signup?'active':''} onClick={()=>{setSignup(true);setError('')}}>Criar conta</button></div>
     <form className="form" onSubmit={login} ref={authFormRef}>
-      {signup&&<ProfileFields specialties={authSpecialties}/>}
+      {updateAvailable&&<div className="notice" role="status">Uma versão mais recente do EventCore está disponível. Salve seu trabalho e <button type="button" className="btn secondary" onClick={()=>location.reload()}>Atualizar página</button> antes de enviar o cadastro.</div>}
+      {signup&&<><p className="subtle" data-registration-version="2">Cadastro seguro atualizado · dados registrados antes da confirmação do e-mail.</p><ProfileFields specialties={authSpecialties}/></>}
       <label>E-mail<input className="input" type="email" name="email" autoComplete="email" required/></label>
       <label>Senha<input className="input" type="password" name="password" autoComplete={signup?'new-password':'current-password'} minLength={8} required/></label>
       {error&&<div className="error" role="alert">{error}</div>}{notice&&<div className="notice" role="status">{notice}</div>}
-      <button className="btn" disabled={busy||signup&&!authSpecialties.length}>{busy?'Aguarde…':signup?'Criar minha conta':'Entrar'}</button>
+      <button className="btn" disabled={busy||updateAvailable||signup&&!authSpecialties.length}>{busy?'Aguarde…':signup?'Criar minha conta':'Entrar'}</button>
       {!signup&&<button className="btn ghost" type="button" disabled={busy||resendCooldown>0} onClick={resendConfirmation}>{resendCooldown>0?`Reenviar em ${resendCooldown}s`:"Reenviar e-mail de confirmação"}</button>}
       {signup&&<small className="subtle">Seu CPF/CNPJ fica na área privada de identificação e não aparece no perfil profissional.</small>}
     </form>
