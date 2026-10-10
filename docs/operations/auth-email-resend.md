@@ -23,3 +23,4 @@ Referências:
 
 ## Segurança
 Nunca publicar a chave Resend, `service_role` ou credenciais SMTP em GitHub, Vercel client env, imagens ou chats. E-mail de confirmação é ação de autenticação do Supabase, não notificação de marketing. Não desabilitar `Confirm email` como solução para rate limit.
+

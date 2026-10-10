@@ -25,7 +25,7 @@ self.addEventListener("fetch", (event) => {
   })));
 });
 const NOTIFICATION_UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-const NOTIFICATION_LINK = new RegExp(`^(?:/o/${NOTIFICATION_UUID}|/\\?(?:opportunity|assignment|contract)=${NOTIFICATION_UUID})$`, "i");
+const NOTIFICATION_LINK = new RegExp(`^(?:/o/${NOTIFICATION_UUID}|/\\?(?:opportunity|assignment|contract|request|proposal)=${NOTIFICATION_UUID})$`, "i");
 self.addEventListener("push", (event) => {
   let payload; try { payload = event.data?.json(); } catch { return; }
   if (!payload || typeof payload.link !== "string" || !NOTIFICATION_LINK.test(payload.link)) return;

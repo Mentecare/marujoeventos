@@ -14,3 +14,4 @@ test("other errors remain handled by existing error adapter",()=>{
   assert.equal(emailAuthError({code:"custom_unrelated_error",message:"something else"}),null);
   assert.equal(emailAuthError(null),null);
 });
+

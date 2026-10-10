@@ -81,7 +81,7 @@ set local session_replication_role=origin;
 insert into auth.users(id,email,raw_user_meta_data) select ('10000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,'workflow-worker-'||i||'@example.invalid','{}'::jsonb from generate_series(11,20) i;
 update public.profiles set profile_type='freelancer',onboarding_completed=true where id in (select ('10000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid from generate_series(11,20) i);
 insert into public.freelancers(id,profile_id,full_name) select ('60000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,('10000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,'Worker '||i from generate_series(11,20) i;
-insert into public.profile_specialties(profile_id,specialty_id) select p.id,(select id from public.specialties where active order by id limit 1) from public.profiles p where p.profile_type='freelancer';
+insert into public.profile_specialties(profile_id,specialty_id) select p.id,(select id from public.specialties where active order by id limit 1) from public.profiles p where p.profile_type='freelancer' and p.id::text like '10000000-%';
 insert into public.profile_photos(id,profile_id,kind,slot,object_path,byte_size,caption,real_declared) values
 ('99000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','portfolio',1,'10000000-0000-4000-8000-000000000001/99000000-0000-4000-8000-000000000001.webp',1024,'Provider real work',true),
 ('99000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000005','portfolio',1,'10000000-0000-4000-8000-000000000005/99000000-0000-4000-8000-000000000002.webp',1024,'Worker real work',true);

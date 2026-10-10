@@ -2,6 +2,14 @@
 begin;
 create function pg_temp.check_true(ok boolean,label text) returns void language plpgsql as $$ begin if ok is distinct from true then raise exception 'FAIL: %',label; end if; end $$;
 create function pg_temp.expect_error(statement text,expected text) returns void language plpgsql as $$ begin begin execute statement; exception when others then if sqlerrm=expected or (expected='permission' and sqlstate='42501') then return; end if; raise; end; raise exception 'FAIL: unexpectedly allowed %',statement; end $$;
+-- IDs may contain 220/440/280/5600 by chance; retain checks on actual payload values.
+create function pg_temp.notification_has_private_payload(value jsonb,pattern text) returns boolean language sql immutable as $$
+ select regexp_replace(value::text,'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}','UUID','gi') ~ pattern;
+$$;
+select pg_temp.check_true(not pg_temp.notification_has_private_payload(jsonb_build_object('link','/?assignment=44000000-2200-4000-8000-000000000440','title','Atualização do seu convite ou contrato de trabalho'),'SECRET|220|440|wage|margin|client|venue'),'safe UUID is not remuneration');
+select pg_temp.check_true(not pg_temp.notification_has_private_payload(jsonb_build_object('opportunity',jsonb_build_object('id','28000000-5600-4000-8000-000000000280'),'title','Atualização de proposta ou contratação'),'PRIVATE|280|5600|client|venue|margin'),'safe nested quote UUID is not a sale value');
+select pg_temp.check_true(pg_temp.notification_has_private_payload(jsonb_build_object('link','/?assignment=44000000-2200-4000-8000-000000000440','rate',220),'SECRET|220|440|wage|margin|client|venue'),'actual remuneration still rejected');
+select pg_temp.check_true(pg_temp.notification_has_private_payload(jsonb_build_object('link','/?assignment=44000000-2200-4000-8000-000000000440','title','SECRET CLIENT'),'SECRET|220|440|wage|margin|client|venue'),'private client text still rejected');
 select pg_temp.check_true(public.get_public_opportunity('00000000-0000-4000-8000-000000000000') is null,'unknown public preview unavailable');
 insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data) values
 ('94000000-0000-4000-8000-000000000001','provider-notify@example.invalid',now(),'{"full_name":"Provider notification"}'),
@@ -80,7 +88,7 @@ select pg_temp.check_true(public.get_public_opportunity(current_setting('test.se
 reset role;
 select pg_temp.check_true((select count(*)=1 from public.notifications n join private.notification_events ev on ev.id=n.source_id where ev.assignment_id=current_setting('test.assignment')::uuid),'one initial invitation');
 select pg_temp.check_true(not exists(select 1 from public.notifications n join private.notification_events ev on ev.id=n.source_id where ev.kind='assignment' and n.profile_id<>'94000000-0000-4000-8000-000000000002'),'direct invite isolated to selected participant');
-select pg_temp.check_true(not exists(select 1 from private.notification_events ev where private.eventcore_notification_dto(ev.id)::text ~ 'SECRET|220|440|wage|margin|client|venue'),'notification DTO has no private payload');
+select pg_temp.check_true(not exists(select 1 from private.notification_events ev where pg_temp.notification_has_private_payload(private.eventcore_notification_dto(ev.id),'SECRET|220|440|wage|margin|client|venue')),'notification DTO has no private payload');
 -- Closed work suppresses center and jobs; public previews never stale.
 set local role authenticated;
 select set_config('request.jwt.claim.sub','94000000-0000-4000-8000-000000000001',true);
@@ -168,7 +176,7 @@ select set_config('test.contract',public.accept_sale_quote(current_setting('test
 reset role;
 select pg_temp.check_true((select count(*)=3 from public.notifications n join private.notification_events e on e.id=n.source_id where e.contract_id=current_setting('test.contract')::uuid),'contract owner/provider buyer and finance member only');
 select pg_temp.check_true(not exists(select 1 from public.notifications n join private.notification_events e on e.id=n.source_id where e.contract_id=current_setting('test.contract')::uuid and n.profile_id in ('94000000-0000-4000-8000-000000000003','94000000-0000-4000-8000-000000000007')),'unrelated tenant and operations-only contract isolation');
-select pg_temp.check_true(not exists(select 1 from private.notification_events e where e.contract_id=current_setting('test.contract')::uuid and private.eventcore_notification_dto(e.id)::text ~ 'PRIVATE|280|5600|client|venue|margin'),'contract notification has no sale or client fields');
+select pg_temp.check_true(not exists(select 1 from private.notification_events e where e.contract_id=current_setting('test.contract')::uuid and pg_temp.notification_has_private_payload(private.eventcore_notification_dto(e.id),'PRIVATE|280|5600|client|venue|margin')),'contract notification has no sale or client fields');
 set local role authenticated;
 select set_config('request.jwt.claim.sub','94000000-0000-4000-8000-000000000001',true);
 select public.set_organization_finance_member(current_setting('test.org')::uuid,'94000000-0000-4000-8000-000000000006',false);
