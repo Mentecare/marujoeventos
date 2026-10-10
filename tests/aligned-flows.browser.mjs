@@ -53,6 +53,7 @@ try{
    else if(url.pathname.includes('/rpc/')){
     assert.equal(req.headers().authorization,`Bearer ${token}`,'Product RPC lost caller session');
     switch(name){
+     case 'complete_pending_signup':data={status:'missing'};break; // Existing complete fixtures remain unchanged.
      case 'get_commercial_context':data=commercial;break;
      case 'get_event_operations':assert.notEqual(role,'finance','Finance permission must not call operations');data={event,services,assignments,can_finance:role!=='coordinator',can_hire:!['coordinator','buyer','legacy_buyer'].includes(role)&&commercial.identity_complete};break;
      case 'get_work_finance_index':data=['worker','buyer','coordinator'].includes(role)?[]:[{event_id:eventId,event_name:event.name,organization_id:event.organization_id}];break;
