@@ -26,17 +26,18 @@ export async function POST(request:Request){
     const signupClient=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{
       auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
     });
+    const signupNonce=crypto.randomUUID();
     const signup=await signupClient.auth.signUp({
       email,password,options:{
         emailRedirectTo:"https://eventcore.space",
-        data:{full_name:payload.full_name,phone:payload.phone,profile_type:payload.profile_type}
+        data:{full_name:payload.full_name,phone:payload.phone,profile_type:payload.profile_type,registration_nonce:signupNonce}
       }
     });
     if(signup.error)return json(emailAuthError(signup.error)||"Não foi possível registrar a conta. Aguarde e tente novamente.",signup.error.status===429?429:400);
     const user=signup.data.user;
     const age=user?.created_at?Date.now()-new Date(user.created_at).getTime():Infinity;
     // Do not attach untrusted data to existing/obfuscated account IDs returned by Auth.
-    if(!user||signup.data.session||!Number.isFinite(age)||age< -300000||age>120000||user.identities?.length===0)
+    if(!user||signup.data.session||!Number.isFinite(age)||age< -300000||age>120000||user.identities?.length===0||user.user_metadata?.registration_nonce!==signupNonce)
       return json("Não foi possível iniciar um novo cadastro com este e-mail. Tente entrar ou solicitar uma nova confirmação.",409);
 
     const pending=await admin.from("pending_signup_profiles").insert({user_id:user.id,payload});
