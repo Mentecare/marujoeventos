@@ -49,7 +49,7 @@ try{
   await regPage.getByText('Cadastro recebido!',{exact:false}).waitFor();
   assert.ok(submitted,'Form must POST to the EventCore server');
   assert.equal(legacyCalled,false,'Browser should not send signup directly to Supabase');
-  assert.equal(submitted.payload.document_number,'52998224725');
+  assert.equal(submitted.payload.document_number,'529.982.247-25'); // Browser submits as typed; validated server route normalizes it.
   assert.deepEqual(submitted.payload.specialty_ids,[specialty.id]);
   assert.equal(submitted.payload.city,'Rio de Janeiro');
   await regContext.close();
