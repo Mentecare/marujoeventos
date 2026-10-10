@@ -20,6 +20,40 @@ const results=[];
 try{
  for(let n=0;n<60;n++){try{await new Promise((resolve,reject)=>{const r=http.get(base,res=>{res.resume();res.statusCode===200?resolve():reject(Error(String(res.statusCode)))});r.on('error',reject)});break}catch(e){if(n===59)throw e;await new Promise(r=>setTimeout(r,200))}}
  browser=await chromium.launch({executablePath,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']});
+ // Regression: submitting the current registration form must use the secure
+ // first-party endpoint. It must never call Supabase Auth directly from the tab.
+ {
+  const regContext=await browser.newContext({viewport:{width:390,height:844},locale:'pt-BR',serviceWorkers:'block'});
+  let submitted=null,legacyCalled=false;
+  await regContext.route('**/api/specialties',route=>route.fulfill({json:[specialty]}));
+  await regContext.route('**/api/auth/register',route=>{
+    submitted=route.request().postDataJSON();
+    return route.fulfill({status:201,json:{ok:true,confirmation_required:true}});
+  });
+  await regContext.route('**/auth/v1/signup',route=>{
+    legacyCalled=true;
+    return route.fulfill({status:409,json:{message:'The browser bypassed the server registration'}});
+  });
+  const regPage=await regContext.newPage();
+  await regPage.goto(base,{waitUntil:'domcontentloaded'});
+  await regPage.getByRole('button',{name:'Criar conta',exact:true}).click();
+  await regPage.getByText('Cadastro seguro atualizado',{exact:false}).waitFor();
+  await regPage.locator('[name=full_name]').fill('Profissional Exemplo');
+  await regPage.locator('[name=phone]').fill('21999999999');
+  await regPage.locator('[name=specialty_ids]').first().check();
+  await regPage.locator('[name=document_number]').fill('529.982.247-25');
+  await regPage.locator('[name=city]').fill('Rio de Janeiro');
+  await regPage.locator('[name=email]').fill('fixture-cadastro@example.invalid');
+  await regPage.locator('[name=password]').fill('Fixture-Safe-Password-2026');
+  await regPage.getByRole('button',{name:'Criar minha conta'}).click();
+  await regPage.getByText('Cadastro recebido!',{exact:false}).waitFor();
+  assert.ok(submitted,'Form must POST to the EventCore server');
+  assert.equal(legacyCalled,false,'Browser should not send signup directly to Supabase');
+  assert.equal(submitted.payload.document_number,'52998224725');
+  assert.deepEqual(submitted.payload.specialty_ids,[specialty.id]);
+  assert.equal(submitted.payload.city,'Rio de Janeiro');
+  await regContext.close();
+ }
  for(const role of (process.env.EVENTCORE_CHECK_ROLE?[process.env.EVENTCORE_CHECK_ROLE]:['buyer','provider','worker','coordinator','legacy','legacy_buyer','finance']))for(const width of (process.env.EVENTCORE_CHECK_WIDTH?[+process.env.EVENTCORE_CHECK_WIDTH]:[360,390,1280])){
   const context=await browser.newContext({viewport:{width,height:844},locale:'pt-BR',timezoneId:'America/Sao_Paulo',serviceWorkers:'block',permissions:['geolocation'],geolocation:{latitude:-22.9,longitude:-43.2}});
   const profile={id:profileId,full_name:'Responsável '+role,role:role==='legacy'?'admin':role==='coordinator'?'coordinator':'freelancer',active:true,profile_type:role==='legacy'?null:role==='worker'?'freelancer':['buyer','legacy_buyer'].includes(role)?'agency':'company',onboarding_completed:true,professional_status:'available',bio:'Apresentação real'};
