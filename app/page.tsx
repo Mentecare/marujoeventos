@@ -22,6 +22,7 @@ import {acceptedAmount,workerDashboardMetrics} from "@/lib/work-presentation";
 import { parseDocument, validateDocument } from "@/lib/identity";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase-browser";
+import { emailAuthError } from "@/lib/auth-email";
 import { AppTab, capabilitiesFor, canOpenTab, isStaff, navigationFor, profileOrganizationFor, profileTypeLabel, type ProfileType } from "@/lib/capabilities";
 
 type Profile = {
@@ -60,7 +61,7 @@ const paymentStatus:Record<string,string>={pending:"Pendente",approved:"Aprovado
 const businessTypes=["Cenografia","Equipe de carregadores","Agência de eventos","Equipe técnica","Produção","Montagem","Logística","Segurança","Limpeza","Prestadora de serviços","Outro"];
 
 function msg(e:unknown){ return e && typeof e==="object" && "message" in e ? String(e.message) : String(e); }
-function friendlyError(e:unknown){const m=msg(e);const messages:Record<string,string>={invalid_event_data:"Confira os dados e os horários do novo evento.",invalid_event_function:"Confira as vagas, reservas e valores das funções.",invalid_contract_days:"Informe uma quantidade inteira de dias, maior que zero, para cada função.",contract_days_creation_only:"Os dias de contratação são definidos somente na criação do evento.",invalid_event_specialty:"Selecione uma especialidade ativa para cada função.",functions_creation_only:"As funções só podem ser incluídas na criação do evento.",invalid_payment_amount:"Informe um valor contratado válido.",payment_already_paid:"Este pagamento já foi registrado. O valor pago é preservado.",payment_cancelled:"Este pagamento foi cancelado.",payment_amount_required:"Informe o valor contratado antes de registrar o pagamento.",private_document_conflict:"Confira os dados de identificação ou entre na sua conta existente.",invalid_private_document:"Confira o CPF/CNPJ e seus dígitos verificadores.",vacancies_filled:"As vagas desta função já foram preenchidas.",completed_validated_event_required:"Conclua o evento e valide a presença antes de avaliar.",assignment_already_rated:"Esta contratação já foi avaliada.",event_has_not_ended:"O horário de término do evento ainda não passou.",forbidden:"Seu perfil não tem permissão para esta ação.",profile_type_locked:"O tipo de um perfil concluído é mantido para preservar sua operação.",attendance_required:"Registre a presença antes de concluir a contratação.",invalid_attendance_transition:"Esta ação não está disponível para o status atual.",select_active_specialties:"Selecione ao menos uma especialidade.",self_hiring_not_allowed:"Não é possível contratar a própria conta.",specialty_not_compatible:"Esta vaga pede uma especialidade diferente do seu perfil.",application_unavailable:"Esta candidatura não está disponível para contratação.",invalid_application_transition:"A candidatura já foi encerrada ou contratada.",application_requires_reapply:"O profissional precisa se candidatar novamente antes da recontratação.",professional_already_assigned:"Este profissional já está nesta função da escala.",professional_unavailable:"Este profissional não está disponível para contratação.",historical_assignment_cannot_reopen:"Este trabalho já possui presença ou pagamento registrado. Crie um novo evento para uma nova contratação.",invalid_assignment_response:"Esta convocação não aceita essa alteração.",invalid_assignment_status_transition:"Essa alteração não está disponível para o status atual."};return messages[m]||m;}
+function friendlyError(e:unknown){const authMessage=emailAuthError(e);if(authMessage)return authMessage;const m=msg(e);const messages:Record<string,string>={invalid_event_data:"Confira os dados e os horários do novo evento.",invalid_event_function:"Confira as vagas, reservas e valores das funções.",invalid_contract_days:"Informe uma quantidade inteira de dias, maior que zero, para cada função.",contract_days_creation_only:"Os dias de contratação são definidos somente na criação do evento.",invalid_event_specialty:"Selecione uma especialidade ativa para cada função.",functions_creation_only:"As funções só podem ser incluídas na criação do evento.",invalid_payment_amount:"Informe um valor contratado válido.",payment_already_paid:"Este pagamento já foi registrado. O valor pago é preservado.",payment_cancelled:"Este pagamento foi cancelado.",payment_amount_required:"Informe o valor contratado antes de registrar o pagamento.",private_document_conflict:"Confira os dados de identificação ou entre na sua conta existente.",invalid_private_document:"Confira o CPF/CNPJ e seus dígitos verificadores.",vacancies_filled:"As vagas desta função já foram preenchidas.",completed_validated_event_required:"Conclua o evento e valide a presença antes de avaliar.",assignment_already_rated:"Esta contratação já foi avaliada.",event_has_not_ended:"O horário de término do evento ainda não passou.",forbidden:"Seu perfil não tem permissão para esta ação.",profile_type_locked:"O tipo de um perfil concluído é mantido para preservar sua operação.",attendance_required:"Registre a presença antes de concluir a contratação.",invalid_attendance_transition:"Esta ação não está disponível para o status atual.",select_active_specialties:"Selecione ao menos uma especialidade.",self_hiring_not_allowed:"Não é possível contratar a própria conta.",specialty_not_compatible:"Esta vaga pede uma especialidade diferente do seu perfil.",application_unavailable:"Esta candidatura não está disponível para contratação.",invalid_application_transition:"A candidatura já foi encerrada ou contratada.",application_requires_reapply:"O profissional precisa se candidatar novamente antes da recontratação.",professional_already_assigned:"Este profissional já está nesta função da escala.",professional_unavailable:"Este profissional não está disponível para contratação.",historical_assignment_cannot_reopen:"Este trabalho já possui presença ou pagamento registrado. Crie um novo evento para uma nova contratação.",invalid_assignment_response:"Esta convocação não aceita essa alteração.",invalid_assignment_status_transition:"Essa alteração não está disponível para o status atual."};return messages[m]||m;}
 function brl(n:number){ return Number(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
 export default function Page(){
   const [session,setSession]=useState<Session|null>(null);
@@ -71,6 +72,9 @@ export default function Page(){
   const [notice,setNotice]=useState("");
   const [notificationsOpen,setNotificationsOpen]=useState(false);
   const deepLinkHandled=useRef(false);
+  const authFormRef=useRef<HTMLFormElement|null>(null);
+  const [resendCooldown,setResendCooldown]=useState(0);
+  useEffect(()=>{if(resendCooldown<=0)return;const timer=window.setTimeout(()=>setResendCooldown(current=>Math.max(0,current-1)),1000);return()=>window.clearTimeout(timer)},[resendCooldown]);
   const [deepTarget,setDeepTarget]=useState<string|null>(null);
   const [signup,setSignup]=useState(false);
   const [tab,setTab]=useState<AppTab>("home");
@@ -229,8 +233,21 @@ export default function Page(){
         const {data,error}=await supabase.auth.signUp({email,password,options:{emailRedirectTo:location.origin,data:{full_name:payload.full_name,phone:payload.phone,profile_type:payload.profile_type}}});
         if(error)throw error;
         if(data.session){const done=await supabase.rpc("complete_profile",{p_payload:payload});if(done.error){await boot(data.session);throw done.error}await boot(data.session);setNotice("Conta criada. Seu EventCore está personalizado.")}
-        else{form.reset();setSignup(false);setNotice("Confirme seu e-mail e entre para concluir o perfil. O CPF/CNPJ será salvo somente na área privada após a confirmação.")}
+        else{const passwordField=form.elements.namedItem("password") as HTMLInputElement|null;if(passwordField)passwordField.value="";setSignup(false);setNotice("Confirme seu e-mail e entre para concluir o perfil. Se não receber a mensagem, use Reenviar e-mail de confirmação. O CPF/CNPJ será salvo somente na área privada após a confirmação.")}
       }else{const {data,error}=await supabase.auth.signInWithPassword({email,password});if(error||!data.session)throw error||new Error("Falha no login");await boot(data.session)}
+    }catch(e){setError(friendlyError(e))}finally{setBusy(false)}
+  }
+
+  async function resendConfirmation(){
+    if(busy||resendCooldown>0)return;
+    const emailField=authFormRef.current?.elements.namedItem("email") as HTMLInputElement|null;
+    if(!emailField||!emailField.checkValidity()||!emailField.value.trim()){setNotice("");setError("Informe um e-mail válido no campo acima para reenviar a confirmação.");emailField?.focus();return}
+    setBusy(true);setError("");setNotice("");
+    try{
+      const {error}=await supabase.auth.resend({type:"signup",email:emailField.value.trim(),options:{emailRedirectTo:location.origin}});
+      if(error)throw error;
+      setResendCooldown(60);
+      setNotice("Se existir um cadastro aguardando confirmação neste e-mail, um novo link será enviado. Verifique também o spam.");
     }catch(e){setError(friendlyError(e))}finally{setBusy(false)}
   }
 
@@ -307,12 +324,13 @@ export default function Page(){
   if(!session||!profile)return <main className="loginShell"><section className={`loginCard ${signup?'signupCard':''}`}>
     <Brand/><p className="eyebrow">SUA OPERAÇÃO DE EVENTOS</p><h1>{signup?'Criar conta':'Entrar no EventCore'}</h1><p className="subtle">Conecte oportunidades, equipes e eventos.</p>
     <div className="switch"><button type="button" className={!signup?'active':''} onClick={()=>{setSignup(false);setError('')}}>Entrar</button><button type="button" className={signup?'active':''} onClick={()=>{setSignup(true);setError('')}}>Criar conta</button></div>
-    <form className="form" onSubmit={login}>
+    <form className="form" onSubmit={login} ref={authFormRef}>
       {signup&&<ProfileFields specialties={authSpecialties}/>}
       <label>E-mail<input className="input" type="email" name="email" autoComplete="email" required/></label>
       <label>Senha<input className="input" type="password" name="password" autoComplete={signup?'new-password':'current-password'} minLength={8} required/></label>
       {error&&<div className="error" role="alert">{error}</div>}{notice&&<div className="notice" role="status">{notice}</div>}
       <button className="btn" disabled={busy||signup&&!authSpecialties.length}>{busy?'Aguarde…':signup?'Criar minha conta':'Entrar'}</button>
+      {!signup&&<button className="btn ghost" type="button" disabled={busy||resendCooldown>0} onClick={resendConfirmation}>{resendCooldown>0?`Reenviar em ${resendCooldown}s`:"Reenviar e-mail de confirmação"}</button>}
       {signup&&<small className="subtle">Seu CPF/CNPJ fica na área privada de identificação e não aparece no perfil profissional.</small>}
     </form>
   </section></main>;
