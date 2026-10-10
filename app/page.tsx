@@ -155,6 +155,16 @@ export default function Page(){
 
   async function boot(s:Session){
     try{
+      // Finish verified registrations using the private, one-time server-side draft.
+      // The RPC itself checks auth.uid(), confirmed email, and current onboarding state.
+      const completion=await supabase.rpc("complete_pending_signup");
+      if(completion.error){
+        setError("Seus dados de cadastro estão preservados, mas não foi possível finalizar o perfil automaticamente. Entre novamente ou procure o suporte: "+friendlyError(completion.error));
+      }else if(completion.data?.status==="completed"){
+        setNotice("Seu cadastro foi confirmado e o perfil já está pronto para usar o EventCore!");
+      }else if(completion.data?.status==="expired"){
+        setError("Sua confirmação demorou mais que o prazo de armazenamento dos dados. Procure o suporte para concluir o cadastro.");
+      }
       const {data:p,error:pe}=await supabase.from("profiles").select("id,full_name,phone,role,active,profile_type,onboarding_completed,professional_status,bio").eq("id",s.user.id).single();
       if(pe||!p||!p.active) throw new Error("Conta inativa ou sem perfil no EventCore.");
       const next=p as Profile; setSession(s);setProfile(next);
@@ -230,10 +240,12 @@ export default function Page(){
         const payload=profilePayload(form);
         if(!validateDocument(payload.document_type,payload.document_number))throw new Error("Confira o CPF/CNPJ informado.");
         if(!payload.specialty_ids.length)throw new Error("Selecione ao menos uma especialidade.");
-        const {data,error}=await supabase.auth.signUp({email,password,options:{emailRedirectTo:location.origin,data:{full_name:payload.full_name,phone:payload.phone,profile_type:payload.profile_type}}});
-        if(error)throw error;
-        if(data.session){const done=await supabase.rpc("complete_profile",{p_payload:payload});if(done.error){await boot(data.session);throw done.error}await boot(data.session);setNotice("Conta criada. Seu EventCore está personalizado.")}
-        else{const passwordField=form.elements.namedItem("password") as HTMLInputElement|null;if(passwordField)passwordField.value="";setSignup(false);setNotice("Confirme seu e-mail e entre para concluir o perfil. Se não receber a mensagem, use Reenviar e-mail de confirmação. O CPF/CNPJ será salvo somente na área privada após a confirmação.")}
+        const response=await fetch("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password,payload}),cache:"no-store"});
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(typeof result.error==="string"?result.error:"Não foi possível concluir o cadastro. Tente novamente.");
+        const passwordField=form.elements.namedItem("password") as HTMLInputElement|null;if(passwordField)passwordField.value="";
+        setSignup(false);
+        setNotice("Cadastro recebido! Confirme seu e-mail. Seus dados foram guardados de forma privada e serão ativados automaticamente após a confirmação. Se não receber, use Reenviar e-mail de confirmação.");
       }else{const {data,error}=await supabase.auth.signInWithPassword({email,password});if(error||!data.session)throw error||new Error("Falha no login");await boot(data.session)}
     }catch(e){setError(friendlyError(e))}finally{setBusy(false)}
   }
