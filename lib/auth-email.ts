@@ -12,3 +12,4 @@ export function emailAuthError(error:unknown):string|null {
   if(code==="otp_expired"||/email link is invalid|token has expired|expired token/.test(message))return "O link de confirmação expirou ou é inválido. Solicite um novo link na tela de entrada.";
   return null;
 }
+

@@ -219,11 +219,11 @@ export default function Page(){
     if(loading||!profile||!commercialContext||deepLinkHandled.current)return;
     const link=location.pathname+location.search;
     if(!safeNotificationLink(link))return;
-    const params=new URLSearchParams(location.search),opportunity=params.get('opportunity'),assignment=params.get('assignment'),contract=params.get('contract');
+    const params=new URLSearchParams(location.search),opportunity=params.get('opportunity'),assignment=params.get('assignment'),contract=params.get('contract'),request=params.get('request'),proposal=params.get('proposal');
     deepLinkHandled.current=true;
     if(opportunity){const allowed=opportunities.find(o=>o.service_id===opportunity);if(!allowed||!allowed.compatible){setNotice('Esta oportunidade está indisponível ou exige outra especialidade.');return}setTab('events');setEventsMode('opportunities');setSelectedEventId(null);setDeepTarget('opportunity-'+opportunity)}
     if(assignment){if(!workAssignments.some(a=>a.id===assignment)){setNotice('Esta atualização não está disponível para sua conta.');return}setTab('schedule');setDeepTarget('assignment-'+assignment)}
-    if(contract){void(async()=>{try{for(const organization of commercialContext.organizations.filter(o=>o.can_finance)){const workspace=await commercialApi(supabase).workspace(organization.id);if(workspace.contracts.some(c=>c.id===contract)){setActiveOrgId(organization.id);setTab('clients');setDeepTarget('contract-'+contract);return}}setNotice('Este contrato não está disponível para sua conta.')}catch{setError('Não foi possível abrir seu contrato.')}})()}
+    if(contract||request||proposal){void(async()=>{try{for(const organization of commercialContext.organizations.filter(o=>o.can_finance)){const workspace=await commercialApi(supabase).workspace(organization.id);const target=contract&&workspace.contracts.some(c=>c.id===contract)?'contract-'+contract:request&&workspace.requests.some(r=>r.id===request)?'request-'+request:proposal&&workspace.quotes.some(q=>q.id===proposal)?'proposal-'+proposal:null;if(target){setActiveOrgId(organization.id);setTab('clients');setDeepTarget(target);return}}setNotice('Esta atualização comercial não está disponível para sua conta.')}catch{setError('Não foi possível abrir sua atualização comercial.')}})()}
   },[loading,profile?.id,commercialContext,opportunities,workAssignments]);
   useEffect(()=>{
     if(!deepTarget)return;

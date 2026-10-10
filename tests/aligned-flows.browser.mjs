@@ -178,6 +178,8 @@ try{
     await page.goto(base+'/?assignment='+assignmentId,{waitUntil:'networkidle'});await page.locator('#assignment-'+assignmentId).waitFor();assert.equal(await page.evaluate(()=>document.activeElement.id),'assignment-'+assignmentId);
    }else if(role==='finance'){
     await page.goto(base+'/?contract='+contractId,{waitUntil:'networkidle'});await page.locator('#contract-'+contractId).waitFor();assert.equal(await page.evaluate(()=>document.activeElement.id),'contract-'+contractId);assert.equal(calls.some(c=>c.name==='get_event_operations'),false,'notification deep link preserves independent finance access');
+    for(const [kind,target] of [['request',requestId],['proposal',quoteId]]){await page.goto(base+`/?${kind}=${target}`,{waitUntil:'networkidle'});await page.locator('#'+kind+'-'+target).waitFor();assert.equal(await page.evaluate(()=>document.activeElement.id),kind+'-'+target)}
+    await page.goto(base+'/?request='+id(999),{waitUntil:'networkidle'});await page.getByText('Esta atualização comercial não está disponível para sua conta.',{exact:true}).waitFor();assert.equal(await page.locator('#request-'+id(999)).count(),0,'unknown identifier never resolves a commercial row');
    }
   }
   await navigate('Meu perfil');const enlarge=page.getByRole('link',{name:'Ampliar: Trabalho real',exact:true});await enlarge.waitFor();assert.equal(await enlarge.getAttribute('target'),'_blank');assert.equal(await enlarge.getAttribute('href'),image);await geometry();await page.screenshot({path:path.join(output,`${role}-${width}.png`),fullPage:true});

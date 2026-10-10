@@ -5,8 +5,11 @@ import { dispatchNotifications, authorizedDispatcher, deliveryConfiguration, cre
 const id='10000000-0000-4000-8000-000000000001';
 const subscription={endpoint:'https://fcm.googleapis.com/fcm/send/fixture',keys:{p256dh:Buffer.alloc(65,4).toString('base64url'),auth:Buffer.alloc(16,1).toString('base64url')}};
 test('notification links only accept exact internal opportunity and own-work/contract targets',()=>{
- for(const link of [`/o/${id}`,`/?opportunity=${id}`,`/?assignment=${id}`,`/?contract=${id}`])assert.equal(safeNotificationLink(link),link);
+ for(const link of [`/o/${id}`,`/?opportunity=${id}`,`/?assignment=${id}`,`/?contract=${id}`,`/?request=${id}`,`/?proposal=${id}`])assert.equal(safeNotificationLink(link),link);
  for(const link of ['https://evil.test','//evil.test','/?contract=bad',`/?contract=${id}&next=https://evil.test`,`/o/${id}?private=1`,'/api/profile/photos','javascript:alert(1)'])assert.equal(safeNotificationLink(link),null);
+});
+test('commercial alert links cannot append destinations or combine private targets',()=>{
+ for(const link of [`/?request=${id}&next=https://evil.test`,`/?proposal=${id}&request=${id}`,`/?proposal=${id}#private`,'/?request=unknown','/?proposal=unknown'])assert.equal(safeNotificationLink(link),null);
 });
 test('push endpoint validation rejects SSRF, credentials, redirects and malformed keys',()=>{
  assert.deepEqual(validatePushSubscription(subscription),subscription);

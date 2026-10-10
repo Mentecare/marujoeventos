@@ -5,7 +5,7 @@ export type NotificationItem = {id:string;title:string;link:string;created_at:st
 export type NotificationCenter = {delivery?:{push:{enabled:boolean;missing:string[]};email:{enabled:boolean;missing:string[]}};preferences:NotificationPreferences;email_confirmed:boolean;notifications:NotificationItem[];devices:{id:string;endpoint?:string;active:boolean;created_at:string}[]};
 export type NotificationRpcClient = {rpc:(name:string,args?:Record<string,unknown>)=>PromiseLike<{data:unknown;error:{message:string}|null}>};
 const UUID='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-const LINK=new RegExp(`^(?:/o/${UUID}|/\\?(?:opportunity|assignment|contract)=${UUID})$`,'i');
+const LINK=new RegExp(`^(?:/o/${UUID}|/\\?(?:opportunity|assignment|contract|request|proposal)=${UUID})$`,'i');
 export function safeNotificationLink(value:unknown):string|null {
  return typeof value==='string' && LINK.test(value) ? value : null;
 }

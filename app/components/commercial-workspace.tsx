@@ -126,7 +126,7 @@ export function CommercialWorkspace({ organization, identityComplete, onContract
           </form></>}
       <h3>Solicitações
       </h3>{data.requests.map(r =>
-        <article className="operationRow" key={r.id}>
+        <article className="operationRow" key={r.id} id={'request-'+r.id} tabIndex={-1}>
           <div>
             <strong>{r.title}
             </strong>
@@ -155,7 +155,7 @@ export function CommercialWorkspace({ organization, identityComplete, onContract
     <section className="panel">
       <h2>Orçamentos e propostas
       </h2>{data.quotes.map(q =>
-        <article className="functionDraft" key={q.id}>
+        <article className="functionDraft" key={q.id} id={'proposal-'+q.id} tabIndex={-1}>
           <h3>{q.title}
           </h3>
           <p>{q.issuer.display_name} → {q.client.display_name} · {q.status} · revisão {q.revision}

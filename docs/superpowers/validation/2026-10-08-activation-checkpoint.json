@@ -1,0 +1,414 @@
+{
+  "checked_at_utc": "2026-10-08T23:05:30.479Z",
+  "authorization": "User explicitly authorized PR9, five reviewed Supabase migrations, coordinated publication on eventcore.space, and new VAPID/dispatch credentials initially in branch Preview on 2026-10-08.",
+  "github": {
+    "repository": "Mentecare/marujoeventos",
+    "pr": 9,
+    "merged": true,
+    "approved_head": "e0b165f3b791e6aa3d131d773e2c34950d616b3e",
+    "merge_sha": "cea9a61befb4263a337e2f8c6290693b6638470d",
+    "approved_tree": "d5e89fd168e257aca70baf9a0b5819c5bd3de07c",
+    "merge_compare_files": []
+  },
+  "ci": {
+    "run_id": 37810524189,
+    "job_id": 113425888570,
+    "conclusion": "success",
+    "unit_tests": 87,
+    "failed": 0,
+    "skipped": 0,
+    "role_viewport_journeys": 21,
+    "pdf_dispatch_browser_scenarios": 7,
+    "note": "CI transports isolated. Does not prove hosted authenticated PDF or actual device/email delivery."
+  },
+  "production": {
+    "deployment_id": "dpl_7XfURTP5korgmjarqoH8LGZB32jR",
+    "url": "https://eventcore.space/",
+    "deployment_url": "https://marujoeventos-ky7knyy89-douglas-factory-project.vercel.app",
+    "target": "production",
+    "state": "READY",
+    "sha": "cea9a61befb4263a337e2f8c6290693b6638470d",
+    "aliases": [
+      {
+        "alias": "eventcore.space",
+        "deploymentId": "dpl_7XfURTP5korgmjarqoH8LGZB32jR",
+        "redirect": null
+      },
+      {
+        "alias": "www.eventcore.space",
+        "deploymentId": "dpl_7XfURTP5korgmjarqoH8LGZB32jR",
+        "redirect": "eventcore.space"
+      }
+    ],
+    "http": {
+      "root": 200,
+      "service_worker": 200,
+      "pdf_valid_uuid_unauth": 401,
+      "pdf_application_auth_body_proved": false
+    },
+    "runtime_error_fatal_groups_30m": 0,
+    "note": "No error/fatal groups returned in bounded queried window; authenticated journeys not exercised."
+  },
+  "preview": {
+    "deployment_id": "dpl_Hdb9eVLTWdEjQMuhtLSXMDBY94ZW",
+    "url": "https://marujoeventos-uf6tur7y5-douglas-factory-project.vercel.app",
+    "api_target": "staging",
+    "state": "READY",
+    "sha": "e0b165f3b791e6aa3d131d773e2c34950d616b3e",
+    "scope": "Preview feature/eventcore-aligned-flows-20261005"
+  },
+  "supabase": {
+    "project_id": "mzwlchgxkuqptiqyznqd",
+    "server_version": "PostgreSQL 17.11",
+    "before_migration_count": 29,
+    "after_migration_count": 34,
+    "migration_version_map": [
+      {
+        "name": "eventcore_commercial_foundation",
+        "applied_tool_version": "20261008225342",
+        "repository_version": "20261005194714",
+        "statement_hash": "e0b65f9b7fe995b7815c1cd30497f497"
+      },
+      {
+        "name": "eventcore_workflows_history",
+        "applied_tool_version": "20261008225358",
+        "repository_version": "20261006082244",
+        "statement_hash": "ac77569347b41bec425af816e9c4851c"
+      },
+      {
+        "name": "eventcore_work_finance_index",
+        "applied_tool_version": "20261008225400",
+        "repository_version": "20261006203715",
+        "statement_hash": "2c18219facdcd1eb6f64c25ec172aa72"
+      },
+      {
+        "name": "eventcore_notifications_public_sharing",
+        "applied_tool_version": "20261008225404",
+        "repository_version": "20261006204723",
+        "statement_hash": "c053912ca4d57e3176712bb501507387"
+      },
+      {
+        "name": "eventcore_final_flow_corrections",
+        "applied_tool_version": "20261008225407",
+        "repository_version": "20261008022315",
+        "statement_hash": "6ccd48c62983077f31ae9ba56d1f2f90"
+      }
+    ],
+    "original_29_migration_rows_and_sql_unchanged": true,
+    "new_5_statement_hashes_unchanged": true,
+    "all_original_26_table_rows_and_columns_preserved": true,
+    "baseline": [
+      {
+        "table": "absence_records",
+        "count": 0,
+        "original_columns_hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table": "assignments",
+        "count": 3,
+        "original_columns_hash": "b1e762e605571ec24b471e3431ba1479"
+      },
+      {
+        "table": "attendance",
+        "count": 1,
+        "original_columns_hash": "cb4d46a9c3b5ba424554e81516786fd1"
+      },
+      {
+        "table": "audit_logs",
+        "count": 0,
+        "original_columns_hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table": "clients",
+        "count": 2,
+        "original_columns_hash": "1fc679e5612e52d0fb530aa54dd5ae4b"
+      },
+      {
+        "table": "documents",
+        "count": 0,
+        "original_columns_hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table": "event_financials",
+        "count": 1,
+        "original_columns_hash": "c6d0cad3eca37eb0905122c723959751"
+      },
+      {
+        "table": "event_services",
+        "count": 4,
+        "original_columns_hash": "d35d404f6db8d988adeffd5ec5bf0329"
+      },
+      {
+        "table": "events",
+        "count": 3,
+        "original_columns_hash": "3886fd61be7f0a101f854ff62ac03c8e"
+      },
+      {
+        "table": "freelancers",
+        "count": 3,
+        "original_columns_hash": "a8915590a05b3020de997e7083500b3f"
+      },
+      {
+        "table": "google_oauth_connections",
+        "count": 1,
+        "original_columns_hash": "cda8d3fe19b4c82fd4dfab3fbf0a8d99"
+      },
+      {
+        "table": "integrations",
+        "count": 1,
+        "original_columns_hash": "5ca488123fbcdf7f36a51a48fa0c2302"
+      },
+      {
+        "table": "job_applications",
+        "count": 1,
+        "original_columns_hash": "d13fe3d062e7ddd1b7107b2080ef42f8"
+      },
+      {
+        "table": "organization_members",
+        "count": 0,
+        "original_columns_hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table": "organization_specialties",
+        "count": 0,
+        "original_columns_hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table": "organizations",
+        "count": 0,
+        "original_columns_hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table": "payments",
+        "count": 3,
+        "original_columns_hash": "61ec797ef141d716fac5ef1067eef9fb"
+      },
+      {
+        "table": "profile_photo_cleanup",
+        "count": 0,
+        "original_columns_hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table": "profile_photos",
+        "count": 2,
+        "original_columns_hash": "02a7cfcf870d090ac522e114a96427b4"
+      },
+      {
+        "table": "profile_private_identity",
+        "count": 1,
+        "original_columns_hash": "be42d41d36222b609b9f18f841d3e7fd"
+      },
+      {
+        "table": "profile_specialties",
+        "count": 2,
+        "original_columns_hash": "822cc5cf61cbaf615ef0f8821129f923"
+      },
+      {
+        "table": "profiles",
+        "count": 2,
+        "original_columns_hash": "910bb6a4a7ac734283bd9816f442b5dd"
+      },
+      {
+        "table": "proposal_items",
+        "count": 0,
+        "original_columns_hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table": "proposals",
+        "count": 0,
+        "original_columns_hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table": "ratings",
+        "count": 0,
+        "original_columns_hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table": "specialties",
+        "count": 11,
+        "original_columns_hash": "0cef3f5a8494bd00f7562c3dfafb69a9"
+      }
+    ],
+    "hosted_rollback_fixtures": [
+      {
+        "file": "workflows-security.sql",
+        "status": "PASS",
+        "adaptation": "Profile specialty insert limited to fixed fixture UUID prefix; no real profile scope."
+      },
+      {
+        "file": "interface-finance-security.sql",
+        "status": "PASS"
+      },
+      {
+        "file": "notifications-security.sql",
+        "status": "PASS after assertion correction",
+        "red_proved": "Old predicate rejects safe UUID containing 220/440; normalized check preserves private money/text detection."
+      },
+      {
+        "file": "profile-photos.sql",
+        "status": "PASS",
+        "scope": "Private bucket metadata/RLS/quota; no actual binary upload"
+      }
+    ],
+    "cleanup": {
+      "auth_users": 2,
+      "leftover_fixed_fixture_users": 0,
+      "notifications": 0,
+      "commercial_contracts": 0,
+      "proposals": 0,
+      "outbox": 0,
+      "notification_devices": 0,
+      "original_photo_objects": 2
+    },
+    "advisors": {
+      "before": {
+        "security": [
+          {
+            "name": "rls_enabled_no_policy",
+            "count": 1,
+            "level": "INFO"
+          },
+          {
+            "name": "authenticated_security_definer_function_executable",
+            "count": 20,
+            "level": "WARN"
+          },
+          {
+            "name": "auth_leaked_password_protection",
+            "count": 1,
+            "level": "WARN"
+          }
+        ],
+        "performance": [
+          {
+            "name": "unused_index",
+            "count": 21,
+            "level": "INFO"
+          },
+          {
+            "name": "multiple_permissive_policies",
+            "count": 9,
+            "level": "WARN"
+          }
+        ]
+      },
+      "after": {
+        "security": [
+          {
+            "name": "rls_enabled_no_policy",
+            "count": 5,
+            "level": "INFO"
+          },
+          {
+            "name": "anon_security_definer_function_executable",
+            "count": 1,
+            "level": "WARN"
+          },
+          {
+            "name": "authenticated_security_definer_function_executable",
+            "count": 68,
+            "level": "WARN"
+          },
+          {
+            "name": "auth_leaked_password_protection",
+            "count": 1,
+            "level": "WARN"
+          }
+        ],
+        "performance": [
+          {
+            "name": "unindexed_foreign_keys",
+            "count": 19,
+            "level": "INFO"
+          },
+          {
+            "name": "auth_rls_initplan",
+            "count": 6,
+            "level": "WARN"
+          },
+          {
+            "name": "unused_index",
+            "count": 28,
+            "level": "INFO"
+          }
+        ]
+      }
+    }
+  },
+  "environment": {
+    "entry_count": 21,
+    "original_google_supabase_17_unchanged": true,
+    "new_credentials_preview_only": true,
+    "notification_entries": [
+      {
+        "id": "kedGDpxj7IggD4io",
+        "key": "NOTIFICATION_DISPATCH_SECRET",
+        "type": "sensitive",
+        "target": [
+          "preview"
+        ],
+        "gitBranch": "feature/eventcore-aligned-flows-20261005"
+      },
+      {
+        "id": "NlROniGvEBc1p7Dm",
+        "key": "NOTIFICATION_VAPID_PRIVATE_KEY",
+        "type": "sensitive",
+        "target": [
+          "preview"
+        ],
+        "gitBranch": "feature/eventcore-aligned-flows-20261005"
+      },
+      {
+        "id": "xFcyQc1ZANsoZUU6",
+        "key": "NOTIFICATION_VAPID_PUBLIC_KEY",
+        "type": "plain",
+        "target": [
+          "preview"
+        ],
+        "gitBranch": "feature/eventcore-aligned-flows-20261005"
+      },
+      {
+        "id": "eC1OGwIrHn1EPRg2",
+        "key": "NOTIFICATION_VAPID_SUBJECT",
+        "type": "plain",
+        "target": [
+          "preview"
+        ],
+        "gitBranch": "feature/eventcore-aligned-flows-20261005"
+      }
+    ],
+    "existing_secrets_decrypted": false
+  },
+  "delivery": {
+    "central_database_and_permissions": "hosted rollback PASS",
+    "new_push_credentials": "saved and metadata verified in Preview only; preview rebuild READY",
+    "production_push": "not activated; credentials remain Preview-scoped",
+    "physical_delivery": "not verified; consenting physical device absent",
+    "email": "not configured; RESEND_API_KEY and NOTIFICATION_EMAIL_FROM absent",
+    "scheduler": "not activated",
+    "mass_or_real_recipient_sends": 0
+  },
+  "pending": [
+    "Hosted authenticated HTTPS/JWT journeys and authorized PDF download",
+    "Actual OAuth reconnection/calendar operation and binary Storage upload",
+    "Preview push registration/physical delivery, followed by production credential scope and scheduler activation",
+    "Resend credentials and verified sender/domain with test recipient",
+    "Performance followup: 19 unindexed foreign keys and 6 RLS initialization-plan warnings; no unsolicited schema change"
+  ],
+  "retained_upstream_warning": "web-push@3.6.7 DEP0169 modernization deferred; no vendor patch or suppression",
+  "recovery": {
+    "private_archive": "eventcore-private-recovery-20261008.zip",
+    "archive_sha256": "ac1c47a229bd51cc99a34802f675a93fd5466313ac4d709d5dd3be278b8ee7e0",
+    "previous_production_id": "dpl_EzuwQTc2uJAz3UFS6JCN7zwQuC3w",
+    "previous_production_sha": "f37f6b303269d739c84c947cf301d267b753560b",
+    "note": "Old UI must not be rolled back alone against stricter schema; stop new callers and preserve rows/guards. Recover only reviewed individual compatible definitions."
+  },
+  "test_only_followup": {
+    "files": [
+      "tests/workflows-security.sql",
+      "tests/notifications-security.sql"
+    ],
+    "production_code_changed": false,
+    "local_unit_suite_after_changes": "87/87 PASS"
+  }
+}
