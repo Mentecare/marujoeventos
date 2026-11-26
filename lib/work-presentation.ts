@@ -18,3 +18,11 @@ export function workerDashboardMetrics(rows:WorkerWorkAssignment[]){
  }
  return {activeWork:active.size,completedWork:completed.size,paidTotal};
 }
+
+/** Only settled payment evidence counts; pending legacy rows are never cash received. */
+export function assignmentPaymentSummary(assignment:WorkerWorkAssignment){
+ const contracted=acceptedAmount(assignment);
+ const paidCents=assignment.payments.filter(p=>p.status==='paid').reduce((sum,p)=>sum+Math.round(p.amount*100),0);
+ const paid=paidCents/100;
+ return {contracted,paid,balance:contracted==null?null:(Math.round(contracted*100)-paidCents)/100};
+}
