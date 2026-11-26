@@ -10,3 +10,13 @@ test-results/
 *.tsbuildinfo
 
 supabase/.temp/
+
+# Cloudflare generated output and private local bindings
+.open-next/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env.*.local
+cloudflare/private/
+
+cloudflare/.wrangler/

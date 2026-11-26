@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "eventcore-cloudflare",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  "vars": {
+    "EVENTCORE_DEPLOYMENT_STAGE": "migration",
+    "EVENTCORE_BACKEND": "supabase"
+  }
+}
