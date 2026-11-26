@@ -1,11 +1,14 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "eventcore-data-migration",
+  "account_id": "bc93540cad47c0397ef19e42f12ba1ee",
   "compatibility_date": "2026-11-26",
-  "d1_databases": [{
-    "binding": "EVENTCORE_DB",
-    "database_name": "eventcore",
-    "database_id": "00000000-0000-0000-0000-000000000000",
-    "migrations_dir": "migrations"
-  }]
+  "d1_databases": [
+    {
+      "binding": "EVENTCORE_DB",
+      "database_name": "eventcore",
+      "database_id": "67010f9d-7fa7-4cf8-8bbe-880515321855",
+      "migrations_dir": "migrations"
+    }
+  ]
 }

@@ -1,0 +1,23 @@
+{
+  "account_id": "bc93540cad47c0397ef19e42f12ba1ee",
+  "d1": {
+    "name": "eventcore",
+    "database_id": "67010f9d-7fa7-4cf8-8bbe-880515321855",
+    "applied_migrations": [
+      "0001_recovery_archive.sql"
+    ],
+    "private_rows_imported": 0
+  },
+  "worker": {
+    "name": "eventcore-cloudflare",
+    "tag": "39166b68a3bb4814836c8123263fbb06",
+    "stage": "migration-bootstrap",
+    "workers_dev_enabled": true,
+    "application_ready": false
+  },
+  "workers_subdomain": "douglas-eventcore",
+  "r2": "requires_dashboard_activation",
+  "github_builds": "requires_git_account_connection",
+  "custom_domain": "not_configured",
+  "supabase_dependency_removed": false
+}
