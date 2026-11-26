@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "eventcore-cloudflare",
+  "account_id": "bc93540cad47c0397ef19e42f12ba1ee",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-26",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "EVENTCORE_DB",
+      "database_name": "eventcore",
+      "database_id": "67010f9d-7fa7-4cf8-8bbe-880515321855",
+      "migrations_dir": "cloudflare/migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    }
+  },
+  "vars": {
+    "EVENTCORE_DEPLOYMENT_STAGE": "migration",
+    "EVENTCORE_BACKEND": "supabase"
+  }
+}
