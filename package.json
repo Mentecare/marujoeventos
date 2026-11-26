@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:database": "node scripts/test-isolated-database.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.2",
@@ -20,6 +21,7 @@
     "web-push": "3.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.6.0",
     "@types/node": "^22.10.0",
     "@types/pdfkit": "0.17.5",
     "@types/react": "^19.0.0",

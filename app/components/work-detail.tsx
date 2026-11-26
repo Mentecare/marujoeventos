@@ -5,6 +5,8 @@ import { acceptedAmount, mutableWork } from '@/lib/work-presentation';
 import { supabase } from '@/lib/supabase-browser';
 import { money, useMutation } from './workflow-ui';
 import { WorkFinancePanel } from './work-finance';
+import {AssignmentPayments} from './assignment-payments';
+import {WorkShifts} from './work-shifts';
 type Application = {
   id: string;
   freelancer_id: string;
@@ -40,7 +42,7 @@ export function WorkDetail({ operations, organization, identityComplete, remuner
   }, [organization?.id]);
   const name = (id: string) => directory.find(p => p.freelancer_id === id)?.full_name || people.base.find(p => p.freelancer_id === id)?.full_name || 'Profissional';
   return <>
-    <nav className="eventTabs" aria-label="Etapas do evento">{[['functions', 'Funções e vagas'], ['applications', 'Candidaturas'], ['team', 'Escala'], ['attendance', 'Presença'], ...(operations.can_finance ? [['finance', 'Pagamentos']] : []), ['reviews', 'Avaliações']].map(([id, label]) =>
+    <nav className="eventTabs" aria-label="Etapas do evento">{[['functions', 'Funções e vagas'], ['applications', 'Candidaturas'], ['team', 'Equipe e substituições'], ['shifts','Turnos'], ['attendance', 'Presença'], ...(operations.can_finance ? [['finance', 'Pagamentos']] : []), ['reviews', 'Avaliações']].map(([id, label]) =>
       <button
         key={id}
         className={pane === id ? 'active' : ''}
@@ -93,6 +95,7 @@ export function WorkDetail({ operations, organization, identityComplete, remuner
             <p className="empty">Nenhuma candidatura recebida.
             </p>}
       </section>}
+    {pane==='shifts'&&<WorkShifts operations={operations} name={name} refresh={refresh} canSchedule={identityComplete&&organization?.market_role==='provider'&&organization.can_operate&&open}/>}
     {pane === 'team' &&
       <section className="panel">
         <h3>Equipe real deste trabalho
@@ -105,7 +108,7 @@ export function WorkDetail({ operations, organization, identityComplete, remuner
               </span>
             </div>
             <button className="btn secondary" onClick={() => onProfile(a.freelancer_id)}>Ver perfil profissional
-            </button>
+            </button>{canHire&&['invited','confirmed','reserve','cancelled','no_show'].includes(a.status)&&<details className="replacementForm"><summary>Substituir profissional</summary><form className="form" onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget);await m.run(()=>api.replaceAssignment(a.id,String(f.get('replacement')),String(f.get('reason'))),'Novo convite de substituição criado. O profissional precisa aceitar.')}}><p className="subtle">A contratação anterior e seu histórico serão preservados. Substituições com presença ou pagamentos registrados exigem acerto separado.</p><label>Substituto da sua base<select className="select" name="replacement" required><option value="">Selecione</option>{people.base.filter(p=>p.active&&p.freelancer_id!==a.freelancer_id&&!operations.assignments.some(x=>x.event_service_id===a.event_service_id&&x.freelancer_id===p.freelancer_id)).map(p=><option key={p.freelancer_id} value={p.freelancer_id}>{p.full_name}</option>)}</select></label><label>Motivo<input className="input" name="reason" required maxLength={1000}/></label><button className="btn" disabled={m.busy}>Criar convite de substituição</button></form></details>}
           </article>)}{!operations.assignments.length &&
             <p className="empty">Nenhum profissional escalado.
             </p>}{canHire &&
@@ -193,20 +196,15 @@ export function WorkDetail({ operations, organization, identityComplete, remuner
               <p>Total aceito: {money(acceptedAmount(a))} · {a.accepted_terms ? `Revisão ${a.accepted_terms.revision}` : a.terms_history.length ? 'Aguardando aceite' : 'Total histórico'}
               </p>{a.offered_terms && a.offered_terms.id !== a.accepted_terms?.id &&
                 <p>Oferta pendente: revisão {a.offered_terms.revision} · {money(a.offered_terms.total)}
-                </p>}{a.payments.map(p =>
-                  <p key={p.id}>{money(p.amount)} · {p.status} · {p.method}
-                  </p>)}{identityComplete && !a.payments.some(p => p.status === 'paid') && !['cancelled', 'reserve', 'no_show'].includes(a.status) &&
+                </p>}<AssignmentPayments assignment={a} canRecord={identityComplete} refresh={refresh}/>
+              {identityComplete && !a.payments.some(p => p.status === 'paid') && !['cancelled', 'reserve', 'no_show'].includes(a.status) &&
                     <>{mutableWork(a.event_status, a.end_at) &&
                       <TermsRevision
                         assignment={a}
                         service={operations.services.find(s => s.id === a.event_service_id)}
                         busy={m.busy}
                         submit={terms => m.run(() => api.proposeTerms(a.id, terms), 'Oferta de revisão enviada para aceite.')} />}
-                      <button
-                        className="btn secondary"
-                        disabled={m.busy || acceptedAmount(a) == null}
-                        onClick={() => m.run(() => api.pay(a.id, 'pix'), 'Pagamento registrado.')}>Registrar pagamento por Pix
-                      </button></>}
+</>}
             </article>)}{!remunerations.length &&
               <p className="empty">Nenhuma remuneração de equipe.
               </p>}

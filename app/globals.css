@@ -274,3 +274,5 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 .accountMenu summary { position: relative; }
 .notificationBadge { position:absolute; right:-5px; top:-4px; min-width:18px; height:18px; padding:0 4px; border-radius:10px; background:#156341; color:white; font-size:11px; line-height:18px; text-align:center; }
+/* Operations additions reuse the approved panels, forms and typography. */
+.payrollBlock{margin-block:1rem}.payrollBlock .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.payrollBlock .metric strong{font-size:1.1rem}.replacementForm{flex-basis:100%;padding-block:.75rem}.replacementForm summary{cursor:pointer}.functionDraft fieldset{border:1px solid var(--line,#dce4df);border-radius:12px;padding:1rem}.functionDraft fieldset .check{display:flex;gap:.6rem;margin-block:.75rem}@media(max-width:600px){.payrollBlock .metrics{grid-template-columns:1fr}.replacementForm{width:100%}}

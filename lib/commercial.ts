@@ -129,6 +129,12 @@ export function remunerationTotal(terms: RemunerationInput): number {
 export function workflowApi(db: SupabaseClient) {
   return {
     createWork: (event: EventCreationInput['event'], services: EventCreationInput['services']) => rpc<CreatedWork>(db, 'create_event_with_services', { p_event: event, p_services: services }),
+    shifts: (eventId:string|null=null)=>rpc<WorkShift[]>(db,'get_work_shifts',{p_event_id:eventId}),
+    createShift: (serviceId:string,label:string,startsAt:string,endsAt:string,meetingPoint:string)=>rpc<string>(db,'create_work_shift',{p_service_id:serviceId,p_label:label,p_starts_at:startsAt,p_ends_at:endsAt,p_meeting_point:meetingPoint}),
+    setShiftAssignment: (shiftId:string,assignmentId:string,assigned:boolean)=>rpc<void>(db,'set_work_shift_assignment',{p_shift_id:shiftId,p_assignment_id:assignmentId,p_assigned:assigned}),
+    replaceAssignment: (assignmentId:string,freelancerId:string,reason:string)=>rpc<string>(db,'replace_event_assignment',{p_assignment_id:assignmentId,p_replacement_freelancer_id:freelancerId,p_reason:reason}),
+    assignmentLedger: (assignmentId:string)=>rpc<AssignmentPaymentLedger>(db,'get_assignment_payment_entries',{p_assignment_id:assignmentId}),
+    recordAssignmentPayment: (assignmentId:string,amount:number,method:CustomerReceipt['method'],date:string,kind:'advance'|'partial'|'settlement',reference:string|null,notes:string|null,key:string)=>rpc<string>(db,'record_assignment_payment',{p_assignment_id:assignmentId,p_amount:amount,p_method:method,p_paid_on:date,p_payment_kind:kind,p_evidence_reference:reference,p_notes:notes,p_idempotency_key:key}),
     createExternalClient: (organizationId: string, name: string) => rpc<string>(db, 'create_external_work_client', { p_organization_id: organizationId, p_name: name }),
     proposeTerms: (assignmentId: string, terms: RemunerationInput) => rpc<string>(db, 'propose_assignment_terms', { p_assignment_id: assignmentId, p_terms: terms }),
     acceptTerms: (termId: string) => rpc<void>(db, 'accept_assignment_terms', { p_term_id: termId }),
@@ -168,3 +174,6 @@ export function workflowApi(db: SupabaseClient) {
     providerPresentation: (organizationId: string) => rpc<ProviderPresentation>(db, 'get_provider_presentation', { p_organization_id: organizationId }),
   };
 }
+
+export type WorkShift = { id:string; event_service_id:string; event_id:string; label:string; starts_at:string; ends_at:string; meeting_point:string; assignment_ids:string[] };
+export type AssignmentPaymentLedger = { total:number|null; paid:number; balance:number|null; entries:{id:string;amount:number;method:string;paid_on:string;payment_kind:'advance'|'partial'|'settlement';evidence_reference:string|null;notes:string|null}[] };

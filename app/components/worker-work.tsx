@@ -3,6 +3,8 @@ import { workflowApi, type AssignmentTerms, type WorkerWorkAssignment } from '@/
 import { acceptedAmount, mutableWork } from '@/lib/work-presentation';
 import { supabase } from '@/lib/supabase-browser';
 import { money, workDate, useMutation } from './workflow-ui';
+import {AssignmentPayments} from './assignment-payments';
+import {MyWorkShifts} from './work-shifts';
 export function WorkerWork({ rows, refresh }: {
   rows: WorkerWorkAssignment[];
   refresh: () => Promise<void>;
@@ -11,7 +13,7 @@ export function WorkerWork({ rows, refresh }: {
   async function attendance(id: string, kind: 'in' | 'out') { const pos = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 12000, enableHighAccuracy: true })); await api.recordAttendance(id, kind, pos.coords.latitude, pos.coords.longitude); }
   return <section className="panel">
     <h2>Minha escala, condições e recebimentos
-    </h2>{m.feedback}{!rows.length &&
+    </h2><MyWorkShifts assignmentIds={rows.map(a=>a.id)}/>{m.feedback}{!rows.length &&
       <p className="empty">Você ainda não tem convocações.
       </p>}{rows.map(a => {
         const terms = a.accepted_terms || a.offered_terms, open = mutableWork(a.event_status, a.end_at); return <article
@@ -64,12 +66,7 @@ export function WorkerWork({ rows, refresh }: {
                       onClick={() => m.run(() => api.confirmWorkerCompletion(a.id), 'Trabalho concluído confirmado.')}>Confirmar trabalho concluído
                     </button>}
           </div>
-          <h4>Pagamentos registrados
-          </h4>{a.payments.map(p =>
-            <p key={p.id}>{money(p.amount)} · {p.status} · {p.method || 'Método não informado'}{p.paid_at ? ` · ${workDate(p.paid_at)}` : ''}
-            </p>)}{!a.payments.length &&
-              <p className="subtle">Nenhum pagamento registrado.
-              </p>}
+          <AssignmentPayments assignment={a} refresh={refresh}/>
           <details>
             <summary>Histórico imutável de condições
             </summary>{a.terms_history.map(t =>

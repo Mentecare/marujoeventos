@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase-browser';
 import { money, useMutation, workDate } from './workflow-ui';
 import { revenueDateKey } from '@/lib/finance';
 import { acceptedAmount } from '@/lib/work-presentation';
+import {AssignmentPayments} from './assignment-payments';
 const metrics: [
   string,
   keyof WorkFinance
@@ -246,18 +247,7 @@ export function TeamPayments({ rows, identityComplete, refresh }: {
         </h4>
         <p>Total aceito: {money(acceptedAmount(a))} · {a.accepted_terms ? `Revisão ${a.accepted_terms.revision}` : 'Total histórico'}
         </p>
-        {a.payments.map(p =>
-          <p key={p.id}>{money(p.amount)} · {p.status} · {p.method}{p.paid_at ? ` · ${workDate(p.paid_at)}` : ''}
-          </p>)}
-        {!a.payments.length &&
-          <p className="subtle">Nenhum pagamento registrado.
-          </p>}
-        {identityComplete && acceptedAmount(a) != null && !a.payments.some(p => p.status === 'paid') && !['cancelled', 'reserve', 'no_show'].includes(a.status) &&
-          <button
-            className="btn secondary"
-            disabled={m.busy}
-            onClick={() => m.run(() => api.pay(a.id, 'pix'), 'Pagamento registrado.')}>Registrar pagamento por Pix
-          </button>}
+        <AssignmentPayments assignment={a} canRecord={identityComplete} refresh={refresh}/>
       </article>)}{!rows.length &&
         <p className="empty">Nenhuma remuneração de equipe.
         </p>}
